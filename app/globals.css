@@ -1,0 +1,274 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Dyna Beacon design tokens (v0.9 / Beacon brand guide).
+ *
+ * Navy carries hierarchy and trust, bright blue carries action,
+ * light gold carries premium and AI signal, off-white carries the canvas.
+ * AI surfaces use a restrained pink-gold treatment inside the same brand family.
+ */
+:root {
+  color-scheme: light;
+
+  --brand-navy: 218 70% 14%;
+  --brand-blue: 207 100% 42%;
+  --brand-gold: 39 67% 69%;
+  --brand-offwhite: 60 17% 98%;
+
+  --background: 60 17% 98%;
+  --foreground: 218 70% 14%;
+  --card: 0 0% 100%;
+  --card-soft: 44 34% 95%;
+  --card-foreground: 218 70% 14%;
+  --muted: 44 24% 93%;
+  --muted-foreground: 218 18% 42%;
+  --border: 44 18% 86%;
+  --border-strong: 40 18% 76%;
+
+  --primary: 207 100% 42%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 207 92% 96%;
+  --primary-ring: 207 100% 42%;
+  --accent: 39 67% 69%;
+  --accent-soft: 39 72% 93%;
+  --accent-foreground: 218 70% 14%;
+
+  --ai-surface: 60 17% 98%;
+  --ai-surface-2: 39 72% 94%;
+  --ai-border: 39 67% 69%;
+  --ai-foreground: 218 70% 14%;
+  --ai-glow: 39 67% 69%;
+  --ai-accent: 342 70% 56%;
+  --ai-accent-2: 39 67% 69%;
+  --ai-accent-pink: 342 70% 56%;
+  --ai-gradient: linear-gradient(135deg, hsl(342 70% 56%) 0%, hsl(39 67% 69%) 100%);
+
+  --warning: 32 88% 48%;
+  --warning-soft: 36 95% 95%;
+  --success: 152 48% 36%;
+  --success-soft: 150 42% 94%;
+  --danger: 358 68% 50%;
+  --danger-soft: 358 80% 96%;
+  --critical: 350 70% 42%;
+
+  /* Role accents 鈥?three shades of Dyna blue (lighter 鈫?deeper):
+     Junior  = light sky blue, fresh / learning
+     Mid     = brand blue, the canonical Dyna accent
+     Manager = supervisory blue, distinct from app navy background */
+  --role-junior: 200 92% 64%;
+  --role-mid: 207 100% 42%;
+  --role-manager: 211 82% 32%;
+
+  --font-sans: var(--font-inter, "Inter"), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces, "Fraunces"), var(--font-inter, "Inter"), ui-serif, Georgia, serif;
+  --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --shadow-soft: 0 1px 2px 0 rgb(20 22 28 / 0.04), 0 8px 24px -8px rgb(20 22 28 / 0.08);
+  --shadow-lift: 0 1px 2px 0 rgb(20 22 28 / 0.05), 0 16px 40px -12px rgb(20 22 28 / 0.12);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --brand-navy: 218 70% 14%;
+  --brand-blue: 207 100% 54%;
+  --brand-gold: 39 67% 69%;
+  --brand-offwhite: 60 17% 98%;
+
+  --background: 218 70% 8%;
+  --foreground: 60 17% 94%;
+  --card: 218 62% 11%;
+  --card-soft: 218 50% 14%;
+  --card-foreground: 60 17% 94%;
+  --muted: 218 42% 18%;
+  --muted-foreground: 218 12% 72%;
+  --border: 218 34% 24%;
+  --border-strong: 218 30% 34%;
+
+  --primary: 207 100% 54%;
+  --primary-foreground: 222 38% 8%;
+  --primary-soft: 207 64% 16%;
+  --accent: 39 67% 69%;
+  --accent-soft: 39 42% 17%;
+  --accent-foreground: 60 17% 94%;
+
+  --ai-surface: 218 58% 12%;
+  --ai-surface-2: 218 46% 15%;
+  --ai-border: 39 67% 69%;
+  --ai-foreground: 60 17% 94%;
+  --ai-glow: 39 67% 69%;
+  --ai-accent: 342 74% 68%;
+  --ai-accent-2: 39 67% 69%;
+  --ai-accent-pink: 342 74% 68%;
+  --ai-gradient: linear-gradient(135deg, hsl(342 74% 68%) 0%, hsl(39 67% 69%) 100%);
+
+  --warning: 32 88% 60%;
+  --warning-soft: 32 40% 18%;
+  --success: 152 50% 52%;
+  --success-soft: 152 30% 16%;
+  --danger: 358 70% 62%;
+  --danger-soft: 358 30% 18%;
+  --critical: 350 70% 58%;
+
+  --role-junior: 200 95% 76%;
+  --role-mid: 207 100% 56%;
+  --role-manager: 211 82% 44%;
+
+  --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  --shadow-lift: 0 1px 2px 0 rgb(0 0 0 / 0.5), 0 16px 40px -12px rgb(0 0 0 / 0.6);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.18);
+}
+
+.brand-surface {
+  background:
+    linear-gradient(112deg, transparent 0 16%, hsl(var(--accent) / 0.18) 16% 28%, transparent 28% 100%),
+    linear-gradient(68deg, transparent 0 69%, hsl(var(--accent) / 0.12) 69% 83%, transparent 83% 100%),
+    linear-gradient(180deg, hsl(var(--brand-offwhite)) 0%, hsl(var(--background)) 100%),
+    hsl(var(--background));
+}
+
+.dark .brand-surface {
+  background:
+    linear-gradient(112deg, transparent 0 16%, hsl(var(--accent) / 0.12) 16% 28%, transparent 28% 100%),
+    linear-gradient(68deg, transparent 0 69%, hsl(var(--primary) / 0.12) 69% 83%, transparent 83% 100%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--card-soft)) 100%),
+    hsl(var(--background));
+}
+
+.dark .brand-grid {
+  background-image:
+    linear-gradient(hsl(var(--brand-offwhite) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--brand-offwhite) / 0.045) 1px, transparent 1px);
+}
+
+.brand-grid {
+  background-image:
+    linear-gradient(hsl(var(--brand-navy) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--brand-navy) / 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, #000 30%, transparent 75%);
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, #000 30%, transparent 75%);
+}
+
+.brand-north-star-pattern {
+  background-image:
+    radial-gradient(circle at center, hsl(var(--accent) / 0.34) 0 1px, transparent 1.5px),
+    radial-gradient(circle at center, hsl(var(--accent) / 0.14) 0 1px, transparent 1.5px);
+  background-position: 0 0, 18px 18px;
+  background-size: 36px 36px;
+}
+
+/* Brand wave 鈥?a subtle blue ripple, inspired by the wave element in the
+ * Beacon mark. Used as a footer ornament across app-shell pages. */
+.brand-wave {
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 80'%3E%3Cpath d='M0 40 C 150 0, 300 80, 450 40 S 750 0, 900 40 S 1200 80, 1200 40 V80 H0 Z' fill='%230077D7' opacity='0.10'/%3E%3Cpath d='M0 50 C 200 20, 400 78, 600 48 S 1000 20, 1200 50 V80 H0 Z' fill='%230B1D3D' opacity='0.06'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom center;
+  background-size: 1200px 80px;
+}
+
+/* Brand light beam 鈥?a soft gold radial, like a beacon's light. Used in
+ * the top-right corner of app-shell pages. */
+.brand-light-beam {
+  background:
+    radial-gradient(ellipse 70% 60% at 100% 0%, hsl(var(--brand-gold) / 0.16) 0%, transparent 60%);
+}
+
+.brand-beam-surface {
+  background:
+    linear-gradient(78deg, transparent 0 16%, hsl(var(--accent) / 0.14) 16% 32%, transparent 32% 100%),
+    linear-gradient(102deg, transparent 0 68%, hsl(var(--accent) / 0.12) 68% 84%, transparent 84% 100%);
+  -webkit-mask-image: radial-gradient(ellipse 86% 74% at 42% 45%, #000 0%, transparent 78%);
+          mask-image: radial-gradient(ellipse 86% 74% at 42% 45%, #000 0%, transparent 78%);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 30, "WONK" 0;
+  letter-spacing: 0;
+}
+
+.font-display-tight {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 50, "WONK" 0;
+  letter-spacing: 0;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-surface {
+  background: linear-gradient(180deg, hsl(var(--ai-surface)) 0%, hsl(var(--ai-surface-2)) 100%);
+  border: 1px solid hsl(var(--ai-border) / 0.34);
+  box-shadow: 0 0 0 1px hsl(var(--ai-glow) / 0.03), 0 20px 42px -28px hsl(var(--ai-glow) / 0.18);
+}
+
+.ai-generated-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: hsl(var(--ai-accent-pink));
+}
+
+.ai-generated-mark::before {
+  content: "✦";
+  display: inline-flex;
+  place-items: center;
+  width: 0.62rem;
+  height: 0.62rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(135deg, hsl(var(--ai-accent-pink)) 0%, hsl(var(--brand-gold)) 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  border: 0;
+  box-shadow: none;
+  transform: none;
+  flex: 0 0 auto;
+}
+
+.ai-text-gradient {
+  background: var(--ai-gradient);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}
+
+.ai-signal-text {
+  background: linear-gradient(135deg, hsl(var(--ai-accent-pink)) 0%, hsl(var(--brand-gold)) 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+}

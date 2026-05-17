@@ -1,0 +1,178 @@
+{
+  "draft_assist": {
+    "channels": {
+      "whatsapp": {
+        "label": "WhatsApp",
+        "formats": ["concise_touch", "client_review_pack", "tax_loss_harvesting", "earnings_analysis"]
+      },
+      "email": {
+        "label": "Email",
+        "formats": [
+          "concise_touch",
+          "meeting_confirm",
+          "client_review_pack",
+          "tax_loss_harvesting",
+          "earnings_analysis",
+          "formal_note"
+        ]
+      },
+      "call_script": {
+        "label": "Phone call",
+        "formats": ["phone_opener", "maturity_reminder", "meeting_scheduling", "meeting_confirm"]
+      }
+    },
+    "formats": {
+      "concise_touch": {
+        "label": "Quick check-in",
+        "artifactKind": "message",
+        "approval": "auto",
+        "prompt": "Prepare a short, natural client check-in. Keep it factual and relationship-led.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 420,
+          "style": "professional wealth RM client check-in",
+          "forbidden": ["subject line", "email closing", "long paragraphs", "markdown bullets", "emoji", "product promise"],
+          "required": ["client-first greeting", "one evidence-led reason", "soft timing question at the end"],
+          "template": [
+            "Hi {firstName},",
+            "I am preparing a short service update for you.",
+            "One item I will include: {signal}.",
+            "Would a brief check-in this week be convenient?"
+          ]
+        }
+      },
+      "meeting_confirm": {
+        "label": "Appointment confirmation",
+        "artifactKind": "message",
+        "approval": "auto",
+        "prompt": "Confirm a meeting or call time. Keep it simple and avoid portfolio claims.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 380,
+          "style": "meeting confirmation",
+          "forbidden": ["subject line", "email closing", "long paragraphs", "markdown bullets", "emoji"],
+          "required": ["confirm timing", "preparation note", "soft question"],
+          "template": [
+            "Hi {firstName},",
+            "Just checking whether our review slot still works for you.",
+            "I will prepare the latest supporting details before we speak.",
+            "Would the current timing still be convenient?"
+          ]
+        }
+      },
+      "review_followup": {
+        "label": "Follow-up note",
+        "artifactKind": "message",
+        "approval": "auto",
+        "prompt": "Prepare a brief follow-up after a client review. This legacy key is kept for older deep links.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 420,
+          "style": "review follow-up",
+          "forbidden": ["subject line", "email closing", "long paragraphs", "markdown bullets", "emoji", "product promise"],
+          "required": ["review status", "portfolio context", "soft timing question"],
+          "template": [
+            "Hi {firstName},",
+            "I am preparing your review note. Current status: {reviewLabel}.",
+            "I will also include the latest context for {topProductName}.",
+            "Would a short review call this week be suitable?"
+          ]
+        }
+      },
+      "formal_note": {
+        "label": "Portfolio change proposal",
+        "artifactKind": "message",
+        "approval": "client_artifact",
+        "prompt": "Prepare client-facing wording for a formal portfolio change discussion. Do not imply implementation before client instruction and internal review.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 420,
+          "style": "portfolio change proposal note",
+          "forbidden": ["subject line", "email closing", "long paragraphs", "markdown bullets", "emoji", "product promise"],
+          "required": ["service update", "supporting details", "timing request"],
+          "template": [
+            "Hi {firstName},",
+            "I am preparing a portfolio change proposal for your review.",
+            "One item I would like to review with you is: {signal}.",
+            "Please let me know a suitable time for a short check-in."
+          ]
+        }
+      },
+      "client_review_pack": {
+        "label": "Client Review Pack",
+        "artifactKind": "pdf",
+        "approval": "client_artifact",
+        "prompt": "Merge client report and financial plan into one review pack. Cover relationship context, portfolio snapshot, lifecycle items, planning questions, and next service steps. Do not make investment decisions.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 460,
+          "style": "brief report handoff",
+          "forbidden": ["subject line", "email closing", "long paragraphs", "product promise"],
+          "required": ["report ready note", "one reason", "offer to share PDF"],
+          "template": [
+            "Hi {firstName},",
+            "I am preparing a Client Review Pack for your next discussion.",
+            "It will cover {signal} and the latest portfolio context.",
+            "Would you like me to send the PDF before our call?"
+          ]
+        }
+      },
+      "tax_loss_harvesting": {
+        "label": "Tax opportunity scan",
+        "artifactKind": "pdf",
+        "approval": "client_artifact",
+        "prompt": "Prepare a tax-aware opportunity scan for RM and client review. Use placeholders for local tax rules and avoid giving tax advice.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 460,
+          "style": "tax-aware scan brief",
+          "forbidden": ["tax advice", "guarantee", "subject line", "email closing", "long paragraphs"],
+          "required": ["tax review context", "advisor caveat", "soft timing question"],
+          "template": [
+            "Hi {firstName},",
+            "I am preparing a tax-aware portfolio scan for review.",
+            "It will identify items to check with the relevant tax professional.",
+            "Would you like this included in our next discussion?"
+          ]
+        }
+      },
+      "earnings_analysis": {
+        "label": "Earnings / lifecycle analysis",
+        "artifactKind": "pdf",
+        "approval": "client_artifact",
+        "prompt": "Prepare an earnings or lifecycle analysis for product maturity, quarterly review, or annual review. Explain what changed and why it matters to the relationship context.",
+        "whatsapp": {
+          "maxLines": 4,
+          "maxChars": 460,
+          "style": "lifecycle brief",
+          "forbidden": ["product promise", "subject line", "email closing", "long paragraphs"],
+          "required": ["event context", "portfolio relevance", "review timing"],
+          "template": [
+            "Hi {firstName},",
+            "I am preparing a short lifecycle update for your review.",
+            "It will cover {signal} and any upcoming maturity or review items.",
+            "Would you like me to include this in our next discussion?"
+          ]
+        }
+      },
+      "phone_opener": {
+        "label": "Opener",
+        "artifactKind": "script",
+        "approval": "auto",
+        "prompt": "Prepare a phone opener with relationship context, one reason for the call, and a permission-based close."
+      },
+      "maturity_reminder": {
+        "label": "Maturity reminder",
+        "artifactKind": "script",
+        "approval": "auto",
+        "prompt": "Prepare a phone script for a product or deposit maturity reminder. Keep it neutral and timing-led."
+      },
+      "meeting_scheduling": {
+        "label": "Meeting scheduling",
+        "artifactKind": "script",
+        "approval": "auto",
+        "prompt": "Prepare a phone script to schedule a client meeting. Keep it short and service-led."
+      }
+    }
+  }
+}

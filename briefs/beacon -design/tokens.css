@@ -1,0 +1,287 @@
+/*
+ * Dyna Beacon — Design tokens (v0.2 hybrid)
+ * Drop into app/globals.css. All values are HSL tuples for tailwind-style
+ * `hsl(var(--token))` usage. Warm ceramic surface direction.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* — Surfaces (warm ceramic) — */
+  --background: 36 24% 97%;        /* warm ceramic white */
+  --foreground: 222 38% 11%;       /* deep graphite */
+  --card: 0 0% 100%;               /* elevated white */
+  --card-soft: 36 22% 95%;         /* secondary card */
+  --card-foreground: 222 38% 11%;
+  --muted: 34 18% 93%;             /* warm stone fill */
+  --muted-foreground: 222 12% 42%; /* taupe slate */
+  --border: 34 14% 87%;            /* low-contrast warm gray */
+  --border-strong: 34 14% 78%;
+  --shadow-soft: 0 1px 2px 0 rgb(20 22 28 / 0.04), 0 8px 24px -8px rgb(20 22 28 / 0.08);
+  --shadow-lift: 0 1px 2px 0 rgb(20 22 28 / 0.05), 0 16px 40px -12px rgb(20 22 28 / 0.12);
+
+  /* — Brand — */
+  --primary: 214 78% 42%;           /* restrained institutional blue */
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 214 80% 96%;
+  --primary-ring: 214 78% 42%;
+  --accent: 38 38% 60%;             /* champagne / platinum */
+  --accent-soft: 38 50% 94%;
+  --accent-foreground: 28 30% 18%;
+
+  /* — AI tokens — Dyna blue → tech magenta gradient (no pure purple) — */
+  --ai-surface: 224 70% 97%;        /* iced blue pearl */
+  --ai-surface-2: 322 55% 97%;      /* whisper of pink */
+  --ai-border: 248 70% 78%;         /* blue-violet edge */
+  --ai-foreground: 232 45% 22%;     /* deep ink for legibility */
+  --ai-glow: 248 90% 70%;            /* electric blue-violet */
+  --ai-accent: 286 75% 56%;          /* magenta-leaning, blue-tinted (tech vibe) */
+  --ai-accent-2: 214 90% 56%;        /* dyna blue counterpart for gradients */
+  --ai-accent-pink: 322 82% 60%;     /* hot pink terminal */
+  --ai-gradient: linear-gradient(135deg, hsl(214 90% 56%) 0%, hsl(264 80% 60%) 50%, hsl(322 82% 60%) 100%);
+
+  /* — State — */
+  --warning: 32 88% 48%;
+  --warning-soft: 36 95% 95%;
+  --success: 152 48% 36%;
+  --success-soft: 150 42% 94%;
+  --danger: 358 68% 50%;
+  --danger-soft: 358 80% 96%;
+  --critical: 350 70% 42%;
+
+  /* — Role accents — three shades of Dyna blue (light → deep) — */
+  --role-junior: 204 84% 52%;       /* sky blue — fresh, learning */
+  --role-mid: 214 78% 42%;          /* brand blue — the canonical Dyna */
+  --role-manager: 224 64% 26%;      /* deep navy — seniority, trust */
+
+  /* — Type — */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", "Inter", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* — Density (overridable for compact / spacious) — */
+  --space-card-pad: 24px;
+  --space-card-pad-lg: 32px;
+  --space-row-y: 14px;
+  --space-section: 28px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+/* Density overrides */
+[data-density="compact"] {
+  --space-card-pad: 16px;
+  --space-card-pad-lg: 22px;
+  --space-row-y: 10px;
+  --space-section: 20px;
+}
+[data-density="spacious"] {
+  --space-card-pad: 32px;
+  --space-card-pad-lg: 44px;
+  --space-row-y: 18px;
+  --space-section: 40px;
+}
+
+/* Accent palette overrides */
+[data-accent="champagne"] {
+  --primary: 38 38% 48%;
+  --primary-soft: 38 50% 94%;
+  --primary-ring: 38 38% 48%;
+}
+[data-accent="mixed"] {
+  /* primary stays blue, accent is dialed up for VIP rails */
+  --accent: 38 50% 56%;
+  --accent-soft: 38 60% 92%;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: 222 30% 7%;
+  --foreground: 36 18% 94%;
+  --card: 222 26% 10%;
+  --card-soft: 222 24% 13%;
+  --card-foreground: 36 18% 94%;
+  --muted: 222 18% 16%;
+  --muted-foreground: 222 10% 65%;
+  --border: 222 16% 20%;
+  --border-strong: 222 16% 28%;
+  --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  --shadow-lift: 0 1px 2px 0 rgb(0 0 0 / 0.5), 0 16px 40px -12px rgb(0 0 0 / 0.6);
+
+  --primary: 214 90% 62%;
+  --primary-foreground: 222 38% 8%;
+  --primary-soft: 214 60% 16%;
+  --accent: 38 42% 64%;
+  --accent-soft: 38 30% 18%;
+  --accent-foreground: 38 18% 92%;
+
+  --ai-surface: 230 35% 12%;
+  --ai-surface-2: 300 30% 14%;
+  --ai-border: 248 60% 55%;
+  --ai-foreground: 236 30% 92%;
+  --ai-glow: 248 90% 65%;
+  --ai-accent: 290 80% 70%;
+  --ai-accent-2: 214 90% 64%;
+  --ai-accent-pink: 322 88% 70%;
+  --ai-gradient: linear-gradient(135deg, hsl(214 90% 64%) 0%, hsl(272 80% 68%) 50%, hsl(322 88% 70%) 100%);
+
+  --warning: 32 88% 60%;
+  --warning-soft: 32 40% 18%;
+  --success: 152 50% 52%;
+  --success-soft: 152 30% 16%;
+  --danger: 358 70% 62%;
+  --danger-soft: 358 30% 18%;
+  --critical: 350 70% 58%;
+
+  --role-junior: 204 90% 68%;       /* sky on dark */
+  --role-mid: 214 90% 62%;          /* brand blue on dark */
+  --role-manager: 224 60% 72%;      /* lifted navy on dark */
+}
+
+/* — Reset + base — */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+a { color: inherit; text-decoration: none; }
+::selection { background: hsl(var(--primary) / 0.2); }
+
+/* — Reusable utilities — */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 30, "WONK" 0;
+  letter-spacing: -0.02em;
+}
+.font-mono { font-family: var(--font-mono); }
+.tabular { font-variant-numeric: tabular-nums; }
+
+.brand-surface {
+  background:
+    radial-gradient(120% 80% at 18% 0%, hsl(var(--primary) / 0.16) 0%, transparent 60%),
+    radial-gradient(80% 60% at 100% 100%, hsl(var(--accent) / 0.20) 0%, transparent 65%),
+    linear-gradient(180deg, hsl(var(--primary-soft)) 0%, hsl(var(--background)) 100%);
+}
+.brand-grid {
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* AI surface — recognizable treatment */
+.ai-surface {
+  position: relative;
+  background:
+    linear-gradient(180deg, hsl(var(--ai-surface)) 0%, hsl(var(--ai-surface-2)) 100%);
+  border: 1px solid hsl(var(--ai-border) / 0.5);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 0 0 1px hsl(var(--ai-glow) / 0.05),
+    0 24px 48px -24px hsl(var(--ai-glow) / 0.25);
+}
+.ai-surface::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, hsl(var(--ai-glow) / 0.4), hsl(var(--ai-accent) / 0.25) 50%, transparent 80%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Soft elevation card */
+.card-elevated {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+.card-flat {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg);
+}
+
+/* Tone-aware fills */
+.tone-success { background: hsl(var(--success) / 0.12); color: hsl(var(--success)); }
+.tone-warning { background: hsl(var(--warning) / 0.14); color: hsl(var(--warning)); }
+.tone-danger  { background: hsl(var(--danger) / 0.12); color: hsl(var(--danger)); }
+.tone-primary { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+.tone-muted   { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+
+/* Tier dot */
+.tier-dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+.tier-dot--critical { background: hsl(var(--critical)); box-shadow: 0 0 0 3px hsl(var(--critical) / 0.18); }
+.tier-dot--active   { background: hsl(var(--warning)); box-shadow: 0 0 0 3px hsl(var(--warning) / 0.18); }
+.tier-dot--watch    { background: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18); }
+.tier-dot--steady   { background: hsl(var(--muted-foreground) / 0.6); box-shadow: 0 0 0 3px hsl(var(--muted) / 0.6); }
+
+/* Subtle dividers */
+hr.subtle { border: 0; height: 1px; background: hsl(var(--border) / 0.7); margin: 0; }
+hr.dashed { border: 0; border-top: 1px dashed hsl(var(--border-strong)); margin: 0; }
+
+/* Buttons (utility classes — port to <Button> variants) */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  font: 500 13px/1 var(--font-sans);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 160ms, border-color 160ms, color 160ms, box-shadow 160ms;
+  white-space: nowrap;
+}
+.btn-primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.btn-primary:hover { background: hsl(var(--primary) / 0.92); }
+.btn-outline { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border-strong)); }
+.btn-outline:hover { background: hsl(var(--muted)); }
+.btn-ghost { background: transparent; color: hsl(var(--muted-foreground)); }
+.btn-ghost:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+
+/* Pill / chip */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border-strong));
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+}
+.chip-primary { background: hsl(var(--primary-soft)); border-color: hsl(var(--primary) / 0.35); color: hsl(var(--primary)); }
+.chip-success { background: hsl(var(--success-soft)); border-color: hsl(var(--success) / 0.35); color: hsl(var(--success)); }
+.chip-warning { background: hsl(var(--warning-soft)); border-color: hsl(var(--warning) / 0.4); color: hsl(var(--warning)); }
+.chip-danger  { background: hsl(var(--danger-soft));  border-color: hsl(var(--danger) / 0.4);  color: hsl(var(--danger)); }
+.chip-muted   { background: hsl(var(--muted)); border-color: transparent; color: hsl(var(--muted-foreground)); }
+
+/* Avatar */
+.avatar {
+  display: inline-grid; place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font: 600 13px/1 var(--font-sans);
+  letter-spacing: 0.02em;
+  border: 1px solid hsl(var(--primary) / 0.18);
+}
+
+/* SVG defaults */
+svg { display: block; }
+.icon { width: 16px; height: 16px; stroke-width: 1.75; }
+.icon-sm { width: 14px; height: 14px; stroke-width: 1.75; }
+.icon-lg { width: 20px; height: 20px; stroke-width: 1.75; }
