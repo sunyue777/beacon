@@ -11,9 +11,9 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   const { runId } = await context.params;
-  let payload: { transition?: unknown; note?: unknown };
+  let payload: { transition?: unknown; note?: unknown; fourEyesWaived?: unknown };
   try {
-    payload = (await request.json()) as { transition?: unknown; note?: unknown };
+    payload = (await request.json()) as { transition?: unknown; note?: unknown; fourEyesWaived?: unknown };
   } catch {
     return NextResponse.json({ ok: false, reason: "invalid json" }, { status: 400 });
   }
@@ -23,6 +23,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
   if (payload.note !== undefined && typeof payload.note !== "string") {
     return NextResponse.json({ ok: false, reason: "invalid note" }, { status: 400 });
+  }
+  if (payload.fourEyesWaived !== undefined && typeof payload.fourEyesWaived !== "boolean") {
+    return NextResponse.json({ ok: false, reason: "invalid four-eyes waiver" }, { status: 400 });
   }
 
   const account = await getOptionalCurrentAccount();
@@ -49,7 +52,13 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
-  const allowed = canTransitionAgentRun(run, payload.transition, { rmId: account.rmId, role: account.role });
+  const fourEyesWaived = payload.fourEyesWaived === true;
+  const allowed = canTransitionAgentRun(
+    run,
+    payload.transition,
+    { rmId: account.rmId, role: account.role },
+    { fourEyesWaived }
+  );
   if (!allowed.ok) {
     return NextResponse.json({ ok: false, reason: allowed.reason }, { status: 409 });
   }
@@ -68,6 +77,7 @@ export async function POST(request: Request, context: RouteContext) {
           to: payload.transition,
           actorId: account.rmId,
           actorRole: account.role,
+          fourEyes: fourEyesWaived ? "waived-demo" : undefined,
           note: typeof payload.note === "string" ? payload.note.slice(0, 600) : undefined,
           timestamp: now
         }
@@ -91,6 +101,7 @@ export async function POST(request: Request, context: RouteContext) {
       transition: payload.transition,
       previousState: run.state ?? "prepared",
       nextState: updated.state,
+      fourEyes: fourEyesWaived ? "waived-demo" : undefined,
       note: typeof payload.note === "string" ? payload.note.slice(0, 600) : undefined
     }
   } satisfies AuditEvent);

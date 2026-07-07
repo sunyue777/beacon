@@ -5,6 +5,7 @@ import { canTransitionAgentRun } from "@/lib/copilot/approval";
 import { buildCopilotContext } from "@/lib/copilot/context";
 import { DraftAssistClient } from "@/lib/copilot/draft-assist";
 import { getApprovalQueueForAccount } from "@/lib/domain/governance";
+import { getRiskComplianceSummary } from "@/lib/domain/risk-compliance";
 import { LocalJsonRepo } from "@/lib/repo/local-json-repo";
 import type { AgentRun, AuditEvent } from "@/lib/repo/types";
 
@@ -29,10 +30,10 @@ test("Adrian sees his Mid-level book, not Jensen's book or Sofia's full team vie
   assert.equal(await repo.canViewCustomer(adrianCustomer.customerId, { rmId: sofia.rmId, role: sofia.role }), true);
 });
 
-test("Adrian routine draft is auto-approved and does not enter Sofia's queue", async () => {
+test("Adrian routine draft uses self-approval and does not enter Sofia's queue", async () => {
   const run = await runAdrianDraft("concise_touch");
 
-  assert.equal(run.approvalRequired, "auto");
+  assert.equal(run.approvalRequired, "rm-approval");
   assert.equal(canTransitionAgentRun(run, "approved", { rmId: adrian.rmId, role: adrian.role }).ok, true);
 
   const sofiaQueue = getApprovalQueueForAccount(
@@ -50,6 +51,43 @@ test("Adrian routine draft is auto-approved and does not enter Sofia's queue", a
   );
 
   assert.equal(sofiaQueue.length, 0);
+});
+
+test("Jensen routine draft requires manager approval and appears in Sofia's queue", async () => {
+  const run = await runDraftFor(jensen.rmId, "concise_touch");
+
+  assert.equal(run.approvalRequired, "manager-approval");
+
+  const jensenApproval = canTransitionAgentRun(run, "approved", { rmId: jensen.rmId, role: jensen.role });
+  assert.equal(jensenApproval.ok, false);
+  if (!jensenApproval.ok) assert.equal(jensenApproval.reason, "manager approval required");
+
+  const sofiaQueue = getApprovalQueueForAccount(
+    [
+      event({
+        eventId: "jensen_routine_created",
+        type: "draft.created",
+        actorId: jensen.rmId,
+        actorRole: jensen.role,
+        customerId: run.customerId,
+        runId: run.runId,
+        payload: { approvalRequired: run.approvalRequired }
+      })
+    ],
+    { rmId: sofia.rmId, role: sofia.role }
+  );
+
+  assert.deepEqual(sofiaQueue.map((item) => item.eventId), ["jensen_routine_created"]);
+});
+
+test("Block compliance escalates routine draft and adds gate evidence", async () => {
+  const run = await runDraftFor(jensen.rmId, "concise_touch", "Block");
+  const output = run.output as { draft?: string; approvalChecklist?: string[] };
+
+  assert.equal(run.approvalRequired, "manager-approval");
+  assert.ok(output.draft?.includes("COMPLIANCE GATE: Suitability expired"));
+  assert.ok(output.approvalChecklist?.some((item) => item.includes("Suitability expired")));
+  assert.ok(run.steps.some((step) => step.name === "Compliance gate"));
 });
 
 test("Adrian Client Review Pack still requires manager approval and appears in Sofia's queue", async () => {
@@ -82,8 +120,15 @@ test("Adrian Client Review Pack still requires manager approval and appears in S
 });
 
 async function runAdrianDraft(format: string): Promise<AgentRun> {
+  return runDraftFor(adrian.rmId, format);
+}
+
+async function runDraftFor(rmId: string, format: string, complianceTarget: "Block" | "NonBlock" = "NonBlock"): Promise<AgentRun> {
   const repo = new LocalJsonRepo();
-  const customer = (await repo.listCustomers({ rmId: adrian.rmId, role: adrian.role, limit: 1 })).items[0];
+  const account = requireDemoAccount(rmId);
+  const products = await repo.listProducts();
+  const customers = (await repo.listCustomers({ rmId: account.rmId, role: account.role })).items;
+  const customer = await findCustomerForMatrixTest(repo, customers, products, complianceTarget);
   const request = {
     module: "draft_assist" as const,
     customerId: customer.customerId,
@@ -94,17 +139,16 @@ async function runAdrianDraft(format: string): Promise<AgentRun> {
       format
     }
   };
-  const [accounts, holdings, products, transactions, lifecycleEvents, marketSnapshot] = await Promise.all([
+  const [accounts, holdings, transactions, lifecycleEvents, marketSnapshot] = await Promise.all([
     repo.listAccounts(customer.customerId),
     repo.listHoldings(customer.customerId),
-    repo.listProducts(),
     repo.listTransactions(customer.customerId, { limit: 20 }),
     repo.listLifecycleEvents(customer.customerId),
     repo.getLatestMarketSnapshot()
   ]);
   const context = buildCopilotContext({
     request,
-    actor: { rmId: adrian.rmId, name: adrian.name, role: adrian.role },
+    actor: { rmId: account.rmId, name: account.name, role: account.role },
     customer,
     accounts,
     holdings,
@@ -118,6 +162,22 @@ async function runAdrianDraft(format: string): Promise<AgentRun> {
     throw new Error(result.reason);
   }
   return result.output;
+}
+
+async function findCustomerForMatrixTest(
+  repo: LocalJsonRepo,
+  customers: Awaited<ReturnType<LocalJsonRepo["listCustomers"]>>["items"],
+  products: Awaited<ReturnType<LocalJsonRepo["listProducts"]>>,
+  target: "Block" | "NonBlock"
+) {
+  for (const customer of customers) {
+    const holdings = await repo.listHoldings(customer.customerId);
+    const compliance = getRiskComplianceSummary(customer, holdings, products);
+    if ((target === "Block" && compliance.worst === "Block") || (target === "NonBlock" && compliance.worst !== "Block")) {
+      return customer;
+    }
+  }
+  throw new Error(`Expected at least one ${target} customer for approval matrix tests.`);
 }
 
 function event(overrides: Partial<AuditEvent>): AuditEvent {

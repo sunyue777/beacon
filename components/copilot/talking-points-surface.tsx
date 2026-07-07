@@ -62,10 +62,12 @@ const fallbackSuggestedPoints: SuggestedTalkingPoint[] = [
 
 export function TalkingPointsSurface({
   customerId,
+  customerName,
   defaultEngine = "mock",
   suggestedPoints = fallbackSuggestedPoints
 }: {
   customerId: string;
+  customerName?: string;
   defaultEngine?: ModelRouteChoice;
   suggestedPoints?: SuggestedTalkingPoint[];
 }) {
@@ -248,6 +250,7 @@ export function TalkingPointsSurface({
                 generatedAt={run.finishedAt}
                 summary={(output.bullets ?? []).join(" ")}
                 run={run}
+                evidenceContext={{ customerName: customerName ?? "Current client" }}
               />
             ) : null}
           </div>

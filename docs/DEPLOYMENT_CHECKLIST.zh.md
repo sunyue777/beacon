@@ -7,7 +7,7 @@ macOS Terminal / zsh：
 ```bash
 cd /Users/nora/Workspace/01_Hive/Beacon
 npm install
-npm run refresh-data
+npm run check-data
 npx tsc --noEmit
 npm test
 npm run build
@@ -27,6 +27,8 @@ http://localhost:3000
 ```bash
 npm run refresh-data
 ```
+
+`check-data` / `refresh-data` 会同时跑 synthetic 数据生成、数据校验和 Product core / Demo shell 架构边界检查。
 
 如需固定彩排日期：
 
@@ -102,6 +104,7 @@ UPSTASH_REDIS_REST_TOKEN=...
 演示前检查：
 
 - 用 `Live LLM` 完整彩排一次 draft assist 与 talking points，确认第三方 LLM key、预算守卫和 fallback 都正常。
+- 确认 Workspace/Manager 能看到 north-star 指标：governed touches/wk 与 90d coverage。
 - 准备一份完整备份录屏，覆盖 Login、Workspace、Client Book、Client 360、Manager approval。
 - 用现场投影比例检查 `1366x768`，确认 Login、Workspace、Client Book 行级动作、Client 360 tab 与 Beacon 浮窗不重叠。
 
@@ -140,12 +143,13 @@ Go：
 - Client Book 行级 `Call / Draft / Touch` 能打开 Beacon。
 - Client 360 `Copilot` 能跑 talking points 和 next actions。
 - AI output trace 可打开。
+- Evidence pack 可导出一份自查：封面、History、最终 draft、治理证据、免责声明完整，正文无裸客户/运行 ID 和内部行话。
 - Approval state 可从 prepared -> approved -> sent。
-- Manager 可以看到 usage & audit、approval queue、module control。
+- Manager 可以看到 team touches & coverage、approval queue、module control。
 
 No-go：
 
 - 真实 key 出现在 git diff。
 - `/api/copilot/run` 直接从浏览器连接第三方 agent。
-- Junior 可以直接 send 未 approved draft。
+- Junior 账号出现可绕过 Manager 审批的 send 动作。
 - Trace 面板缺 model / provider / state / steps。

@@ -98,6 +98,16 @@ function buildNextBestActionOutput(context: CopilotContext): NextBestActionOutpu
   const priorityTier = getPriorityTier(customer.priorityScore);
   const actions: NextBestActionOutput["actions"] = [];
 
+  if (compliance.suitability.state === "Block") {
+    actions.push({
+      id: "refresh-suitability-questionnaire",
+      label: "Refresh suitability questionnaire",
+      reason: `Suitability expired on ${compliance.suitability.expiresAt}; refresh before any client-facing advisory draft.`,
+      channel: "review",
+      requiredApproval: "none"
+    });
+  }
+
   if (review.kind === "overdue" || review.kind === "due-soon") {
     actions.push({
       id: "prepare-review-call",
@@ -108,7 +118,7 @@ function buildNextBestActionOutput(context: CopilotContext): NextBestActionOutpu
     });
   }
 
-  if (compliance.worst !== "Pass") {
+  if (compliance.worst !== "Pass" && compliance.suitability.state !== "Block") {
     actions.push({
       id: "inspect-approval-path",
       label: "Inspect approval path",

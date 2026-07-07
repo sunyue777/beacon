@@ -2,7 +2,9 @@ import { sessionCookieName } from "@/lib/auth/constants";
 
 export const sessionCookieMaxAge = 30 * 24 * 60 * 60;
 
-let warnedAboutDevSecret = false;
+const sessionSecretWarningState = globalThis as typeof globalThis & {
+  __beaconSessionDevSecretWarned__?: boolean;
+};
 
 export async function createSessionCookieValue(rmId: string) {
   return `${rmId}.${await signSessionValue(rmId)}`;
@@ -56,12 +58,12 @@ function getSessionSecret() {
   if (configured) {
     return configured;
   }
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV === "production") {
     throw new Error("SESSION_SECRET is required to sign Beacon RM sessions.");
   }
-  if (!warnedAboutDevSecret) {
-    warnedAboutDevSecret = true;
-    console.warn("SESSION_SECRET is not set; using the local Beacon dev session secret.");
+  if (!sessionSecretWarningState.__beaconSessionDevSecretWarned__) {
+    sessionSecretWarningState.__beaconSessionDevSecretWarned__ = true;
+    console.warn("SESSION_SECRET is not set; using the local Beacon demo session secret.");
   }
   return "beacon-local-dev-session-secret";
 }

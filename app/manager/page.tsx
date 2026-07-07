@@ -6,11 +6,15 @@ import {
   FileWarning,
   Plus
 } from "lucide-react";
+import { EvidenceExportButton } from "@/components/evidence/evidence-export-button";
+import { HistoryTimeline } from "@/components/evidence/history-timeline";
 import { ApprovalTransitionControls } from "@/components/copilot/approval-transition-controls";
+import { CoverageRing } from "@/components/ui/coverage-ring";
 import { getDraftReviewSummary } from "@/lib/copilot/draft-summary";
 import { getCurrentAccount } from "@/lib/auth/server-session";
 import { getRoleLabel } from "@/lib/auth/accounts";
 import { daysUntil } from "@/lib/domain/client-signals";
+import { buildEvidencePack, buildEvidenceTimeline, getHandledDraftEvents } from "@/lib/domain/evidence-pack";
 import {
   getApprovalQueue,
   getComplianceHygiene,
@@ -18,7 +22,7 @@ import {
 } from "@/lib/domain/governance";
 import { getRepo } from "@/lib/repo";
 import { formatCurrency } from "@/lib/utils/format";
-import type { AgentRun, AuditEvent, CustomerProfile, RMUser } from "@/lib/repo/types";
+import type { AgentRun, AuditEvent, CustomerProfile, RMRole, RMUser } from "@/lib/repo/types";
 
 type PageProps = {
   searchParams?: Promise<{ event?: string; window?: "today" | "week" | "mtd" | "qtd" }>;
@@ -51,6 +55,7 @@ export default async function ManagerPage({ searchParams }: PageProps) {
   ]);
 
   const approvalQueue = getApprovalQueue(auditEvents);
+  const handledDrafts = getHandledDraftEvents(auditEvents);
   const coverage = getRmCoverage(rms, customers.items, runs, auditEvents);
   const hygiene = getComplianceHygiene(customers.items, auditEvents);
   void activeEvent;
@@ -156,6 +161,9 @@ export default async function ManagerPage({ searchParams }: PageProps) {
 
         <div className="flex flex-col gap-4">
           <ApprovalQueueCard
+            account={account}
+            auditEvents={auditEvents}
+            handled={handledDrafts}
             queue={approvalQueue}
             customers={customers.items}
             rms={rms}
@@ -319,6 +327,7 @@ function TeamPerformanceCard({
             <Th>Book</Th>
             <Th>Book load</Th>
             <Th>Touches/wk</Th>
+            <Th>Coverage 90d</Th>
             <Th>Approvals</Th>
             <Th>Health</Th>
             <Th />
@@ -380,6 +389,18 @@ function TeamPerformanceCard({
                 </Td>
                 <Td>
                   <span className="font-mono text-[12px] tabular">{item.touchesPerWeek}</span>
+                </Td>
+                <Td>
+                  <span className="flex items-center gap-1.5">
+                    <CoverageRing pct={item.contactedIn90dPct} size={26} label={`${item.contactedIn90dPct}% of book contacted in 90 days`} />
+                    <span
+                      className={`font-mono text-[12px] tabular ${
+                        item.contactedIn90dPct < 60 ? "font-semibold text-warning" : ""
+                      }`}
+                    >
+                      {item.contactedIn90dPct}%
+                    </span>
+                  </span>
                 </Td>
                 <Td>
                   <span
@@ -643,12 +664,18 @@ function HygieneTile({
 /* ============================== Approval queue (right) ============================== */
 
 function ApprovalQueueCard({
+  account,
+  auditEvents,
+  handled,
   queue,
   rms,
   runs,
   customerById,
   rmById
 }: {
+  account: { rmId: string; role: RMRole };
+  auditEvents: AuditEvent[];
+  handled: AuditEvent[];
   queue: AuditEvent[];
   customers: CustomerProfile[];
   rms: RMUser[];
@@ -656,7 +683,6 @@ function ApprovalQueueCard({
   customerById: Map<string, CustomerProfile>;
   rmById: Map<string, RMUser>;
 }) {
-  void rms;
   const runById = new Map(runs.map((run) => [run.runId, run]));
   return (
     <div className="rounded-[16px] border border-border bg-card p-6 shadow-soft">
@@ -684,6 +710,16 @@ function ApprovalQueueCard({
           const actor = rmById.get(event.actorId);
           const run = event.runId ? runById.get(event.runId) : undefined;
           const draft = getDraftReviewSummary(run, event);
+          const pack = run
+            ? buildEvidencePack({
+                kind: "draft",
+                title: "Draft evidence pack",
+                customer,
+                run,
+                events: auditEvents,
+                rms
+              })
+            : undefined;
           const accent =
             actor?.role === "Junior" ? "role-junior" : actor?.role === "Manager" ? "role-manager" : "role-mid";
           const initials = (actor?.name ?? event.actorId)
@@ -726,7 +762,14 @@ function ApprovalQueueCard({
                   {draft.guardLabel} / {event.timestamp.slice(11, 16)}
                 </div>
                 <div className="mt-2 flex gap-1.5">
-                  <ApprovalTransitionControls compact initialState={draft.runState} runId={event.runId} />
+                  <ApprovalTransitionControls
+                    compact
+                    initialState={draft.runState}
+                    run={run}
+                    runId={event.runId}
+                    viewer={account}
+                  />
+                  {pack ? <EvidenceExportButton label="Export evidence" pack={pack} size="xs" /> : null}
                   <Link
                     href={customer ? approvalHref(customer, event, "approval") : "#approval-queue"}
                     className="rounded-[8px] border border-border-strong bg-card px-2.5 py-1.5 text-[11px] font-medium hover:bg-muted"
@@ -743,6 +786,64 @@ function ApprovalQueueCard({
             No drafts pending approval.
           </div>
         ) : null}
+      </div>
+      <div className="mt-4 border-t border-dashed border-border pt-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[13px] font-semibold">Handled evidence</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">Sent and returned drafts with exportable audit trail.</div>
+          </div>
+          <span className="rounded-full border border-border bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+            {handled.length} handled
+          </span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {handled.slice(0, 3).map((event) => {
+            const customer = event.customerId ? customerById.get(event.customerId) : undefined;
+            const actor = rmById.get(event.actorId);
+            const run = event.runId ? runById.get(event.runId) : undefined;
+            const draft = getDraftReviewSummary(run, event);
+            const history = buildEvidenceTimeline({
+              events: event.runId ? auditEvents.filter((item) => item.runId === event.runId) : [event],
+              run,
+              rms
+            });
+            const pack = run
+              ? buildEvidencePack({
+                  kind: "draft",
+                  title: "Draft evidence pack",
+                  customer,
+                  run,
+                  events: auditEvents,
+                  rms
+                })
+              : undefined;
+
+            return (
+              <div className="rounded-[12px] border border-border bg-background/70 p-3" key={event.eventId}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold">
+                      {event.type === "draft.sent" ? "Sent" : "Returned"} - {draft.title}
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {customer?.name ?? "Team item"} / {actor?.name ?? event.actorRole} / {draft.channelLabel} / {event.timestamp.slice(0, 10)}
+                    </div>
+                  </div>
+                  {pack ? <EvidenceExportButton label="Export evidence" pack={pack} size="xs" /> : null}
+                </div>
+                <div className="mt-3">
+                  <HistoryTimeline compact items={history} />
+                </div>
+              </div>
+            );
+          })}
+          {handled.length === 0 ? (
+            <div className="rounded-[12px] border border-dashed border-border bg-card px-4 py-5 text-center text-[12px] text-muted-foreground">
+              No sent or returned drafts yet.
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -143,6 +143,12 @@ function main() {
     auditEvents.push(...buildAuditEvents(customer, index));
   }
 
+  const evidenceDraftCustomer = customers.find((customer) => customer.customerId === "cust_0023" && customer.rmId === "rm_junior_01");
+  if (evidenceDraftCustomer) {
+    agentRuns.push(buildEvidenceDraftRun(evidenceDraftCustomer));
+    auditEvents.push(...buildEvidenceDraftAuditEvents(evidenceDraftCustomer));
+  }
+
   rms[0].bookScope = {
     customerIds: customers.filter((c) => c.assignedRmTier === "Junior").map((c) => c.customerId)
   };
@@ -567,30 +573,43 @@ function buildLifecycleEvents(customer: CustomerProfile, index: number): Lifecyc
   return [0, 1, 2].map((offset) => {
     const type = (["Review", "Maturity", "LifeEvent", "Market", "Portfolio"] as const)[(index + offset) % 5];
     const title = ["Annual review due", "Structured note maturity", "Liquidity planning", "Market movement", "Portfolio drift"][(index + offset) % 5];
+    const date = dateDaysAgo(7 + offset * 23 + (index % 9));
     return {
       eventId: `${customer.customerId}_event_${offset + 1}`,
       customerId: customer.customerId,
-      date: dateDaysAgo(7 + offset * 23 + (index % 9)),
+      date,
       type,
       title,
-      description: lifecycleDescription(type),
+      description: lifecycleDescription(type, date),
       importance: offset === 0 && customer.priorityScore > 75 ? "High" : offset === 1 ? "Medium" : "Low"
     };
   });
 }
 
-function lifecycleDescription(type: LifecycleEvent["type"]) {
+function lifecycleDescription(type: LifecycleEvent["type"], date: string) {
+  const today = now.toISOString().slice(0, 10);
+  const timing = date < today ? "past" : date === today ? "today" : "future";
   switch (type) {
     case "Review":
-      return "Review window is open; prepare agenda, holdings context, and approval evidence.";
+      if (timing === "past") return `Review was due on ${date}; prepare agenda, holdings context, and approval evidence.`;
+      if (timing === "today") return `Review is due today, ${date}; prepare agenda, holdings context, and approval evidence.`;
+      return `Review upcoming on ${date}; prepare agenda, holdings context, and approval evidence.`;
     case "Maturity":
-      return "A product maturity is approaching; prepare reinvestment context and liquidity notes.";
+      if (timing === "past") return `Matured on ${date}; prepare reinvestment follow-up and liquidity notes.`;
+      if (timing === "today") return `Matures today, ${date}; prepare reinvestment follow-up and liquidity notes.`;
+      return `Maturity approaching on ${date}; prepare reinvestment context and liquidity notes.`;
     case "LifeEvent":
-      return "Relationship context changed; prepare a focused check-in before the next client touch.";
+      if (timing === "past") return `Life event was recorded on ${date}; prepare a focused follow-up before the next client touch.`;
+      if (timing === "today") return `Life event is scheduled for today, ${date}; prepare a focused client check-in.`;
+      return `Life event upcoming on ${date}; prepare a focused check-in before the next client touch.`;
     case "Market":
-      return "Market movement may affect the portfolio; prepare a concise impact summary.";
+      if (timing === "past") return `Market movement was recorded on ${date}; prepare a concise impact summary.`;
+      if (timing === "today") return `Market movement is active today, ${date}; prepare a concise impact summary.`;
+      return `Market movement may affect the portfolio on ${date}; prepare a concise impact summary.`;
     case "Portfolio":
-      return "Portfolio drift is visible; prepare the holdings evidence before review.";
+      if (timing === "past") return `Portfolio drift was visible on ${date}; prepare the holdings evidence before review.`;
+      if (timing === "today") return `Portfolio drift is visible today, ${date}; prepare the holdings evidence before review.`;
+      return `Portfolio drift review upcoming on ${date}; prepare the holdings evidence before review.`;
   }
 }
 
@@ -697,6 +716,202 @@ function buildAuditEvents(customer: CustomerProfile, index: number): AuditEvent[
   }
 
   return events;
+}
+
+function buildEvidenceDraftRun(customer: CustomerProfile): AgentRun {
+  const runId = "demo_lifecycle_draft_run";
+  const createdAt = demoIso(4, 10, 20);
+  const returnedAt = demoIso(3, 16, 10);
+  const editedAt = demoIso(2, 11, 35);
+  const approvedAt = demoIso(1, 9, 45);
+  const sentAt = demoIso(1, 10, 5);
+  const finalDraft = [
+    `Dear ${customer.name.split(" ")[0]},`,
+    "",
+    "I have prepared your annual review pack and would like to walk through the current holdings, liquidity needs, and risk profile evidence together.",
+    "",
+    "Could we schedule a 25-minute review meeting this week? I will bring the portfolio summary, the suitability status, and the open review items so we can confirm the next service steps clearly.",
+    "",
+    "Regards,",
+    "Jensen"
+  ].join("\n");
+
+  return {
+    runId,
+    channel: "email",
+    moduleId: "draft_assist",
+    requestedRuntime: "deterministic",
+    backend: "deterministic",
+    model: "demo-seed",
+    llmProvider: "local-demo",
+    skillVersion: "seed-run@evidence-v1",
+    state: "sent",
+    approvalRequired: "manager-approval",
+    why: "Client review pack prepared for Manager review because the originating RM is Junior.",
+    vocabularyAdjusted: true,
+    cached: true,
+    workflowId: "wf_demo_lifecycle_evidence",
+    personaId,
+    customerId: customer.customerId,
+    rmId: "rm_junior_01",
+    roleAtRun: "Junior",
+    inputDigest: `Prepare Client Review Pack email for ${customer.name}`,
+    sourceRefs: ["customer-profile", "holdings", "lifecycle-events", "institution-policy-rules"],
+    steps: [
+      {
+        name: "Load client context",
+        inputRef: "customer-profile",
+        output: {
+          customerName: customer.name,
+          riskProfile: customer.riskProfile,
+          serviceTier: customer.serviceTier
+        },
+        source: "Customer profile"
+      },
+      {
+        name: "Initial draft prepared",
+        output: {
+          subject: "Annual review pack and income outlook",
+          excerpt: "The first version included a yield projection line that required Manager review."
+        },
+        source: "Draft Assist"
+      },
+      {
+        name: "Manager return recorded",
+        output: {
+          from: "prepared",
+          to: "rejected",
+          actorId: "rm_manager_01",
+          actorRole: "Manager",
+          note: "Remove the yield projection line - replace with review-meeting invitation.",
+          timestamp: returnedAt
+        },
+        source: "Review history"
+      },
+      {
+        name: "RM revision recorded",
+        output: {
+          from: "rejected",
+          to: "edited",
+          actorId: "rm_junior_01",
+          actorRole: "Junior",
+          note: "Removed yield projection and replaced it with review meeting invitation.",
+          timestamp: editedAt
+        },
+        source: "Review history"
+      },
+      {
+        name: "Approval chain completed",
+        output: {
+          createdAt,
+          approvedAt,
+          sentAt,
+          finalState: "sent"
+        },
+        source: "Review history"
+      }
+    ],
+    output: {
+      headline: "Client Review Pack email",
+      channel: "email",
+      formatLabel: "Client Review Pack",
+      subject: "Annual review meeting and portfolio evidence",
+      draft: finalDraft,
+      artifactText: finalDraft,
+      artifactKind: "pdf",
+      approvalChecklist: [
+        "Yield projection removed before approval.",
+        "Review meeting invitation added in the final draft.",
+        "Manager review completed before send."
+      ],
+      why: "The final draft reflects the Manager return note and keeps client-facing language reviewable."
+    },
+    fallbackMode: true,
+    redactionLevel: "Summary",
+    startedAt: createdAt,
+    finishedAt: sentAt,
+    latencyMs: Date.parse(sentAt) - Date.parse(createdAt)
+  };
+}
+
+function buildEvidenceDraftAuditEvents(customer: CustomerProfile): AuditEvent[] {
+  const runId = "demo_lifecycle_draft_run";
+  return [
+    {
+      eventId: "demo_lifecycle_draft_created",
+      type: "draft.created",
+      actorId: "rm_junior_01",
+      actorRole: "Junior",
+      customerId: customer.customerId,
+      runId,
+      timestamp: demoIso(4, 10, 20),
+      payload: {
+        channel: "email",
+        approvalRequired: "manager-approval",
+        note: "Created Client Review Pack draft for Manager review."
+      }
+    },
+    {
+      eventId: "demo_lifecycle_draft_returned",
+      type: "draft.rejected",
+      actorId: "rm_manager_01",
+      actorRole: "Manager",
+      customerId: customer.customerId,
+      runId,
+      timestamp: demoIso(3, 16, 10),
+      payload: {
+        transition: "rejected",
+        previousState: "prepared",
+        nextState: "rejected",
+        note: "Remove the yield projection line - replace with review-meeting invitation."
+      }
+    },
+    {
+      eventId: "demo_lifecycle_draft_edited",
+      type: "draft.edited",
+      actorId: "rm_junior_01",
+      actorRole: "Junior",
+      customerId: customer.customerId,
+      runId,
+      timestamp: demoIso(2, 11, 35),
+      payload: {
+        transition: "edited",
+        previousState: "rejected",
+        nextState: "edited",
+        note: "Removed yield projection and replaced it with review meeting invitation."
+      }
+    },
+    {
+      eventId: "demo_lifecycle_draft_approved",
+      type: "draft.approved",
+      actorId: "rm_manager_01",
+      actorRole: "Manager",
+      customerId: customer.customerId,
+      runId,
+      timestamp: demoIso(1, 9, 45),
+      payload: {
+        transition: "approved",
+        previousState: "edited",
+        nextState: "approved",
+        note: "Approved after the yield projection was removed."
+      }
+    },
+    {
+      eventId: "demo_lifecycle_draft_sent",
+      type: "draft.sent",
+      actorId: "rm_junior_01",
+      actorRole: "Junior",
+      customerId: customer.customerId,
+      runId,
+      timestamp: demoIso(1, 10, 5),
+      payload: {
+        transition: "sent",
+        previousState: "approved",
+        nextState: "sent",
+        note: "Sent approved review meeting invitation to the client."
+      }
+    }
+  ];
 }
 
 function buildTranscript(customer: CustomerProfile, index: number): Transcript {
@@ -860,6 +1075,13 @@ function roundMoney(value: number) {
 
 function offsetIso(date: Date, seconds: number) {
   return new Date(date.getTime() + seconds * 1000).toISOString();
+}
+
+function demoIso(daysAgo: number, hour: number, minute: number) {
+  const date = new Date(now);
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  date.setUTCHours(hour, minute, 0, 0);
+  return date.toISOString();
 }
 
 async function writeBundle(bundle: DataBundle) {

@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import {
+  Activity,
   AlertTriangle,
   ArrowRight,
   CalendarClock,
@@ -7,9 +8,12 @@ import {
   Clock,
   FileEdit,
   Send,
-  ShieldCheck
+  ShieldCheck,
+  Users
 } from "lucide-react";
 import { ApprovalTransitionControls } from "@/components/copilot/approval-transition-controls";
+import { CoverageRing } from "@/components/ui/coverage-ring";
+import { HistoryTimeline } from "@/components/evidence/history-timeline";
 import { MarketTonePanel } from "@/components/market/market-tone-panel";
 import { getCurrentAccount } from "@/lib/auth/server-session";
 import { getRoleLabel } from "@/lib/auth/accounts";
@@ -22,9 +26,11 @@ import {
   getReviewStatus,
   type PriorityTier
 } from "@/lib/domain/client-signals";
+import { buildEvidenceTimeline } from "@/lib/domain/evidence-pack";
 import {
   getApprovalQueueForAccount,
   getComplianceHygiene,
+  getProductivityForBook,
   getReturnedDraftsForAccount,
   getRmCoverage
 } from "@/lib/domain/governance";
@@ -76,11 +82,20 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
 
   const approvalQueue = getApprovalQueueForAccount(auditEvents, account);
   const returnedDrafts = getReturnedDraftsForAccount(auditEvents, runs, account);
+  const runById = new Map(runs.map((run) => [run.runId, run]));
+  const personalProductivity = getProductivityForBook(ownedBook.items);
   const briefRunDate = market?.date ?? new Date().toISOString().slice(0, 10);
   const visibleDraftEvents = auditEvents.filter((event) =>
     event.type.startsWith("draft.") &&
-    (account.role === "Manager" ? event.actorId !== account.rmId : event.actorId === account.rmId)
+    (
+      account.role === "Manager"
+        ? event.actorId !== account.rmId
+        : event.actorId === account.rmId || (event.runId ? runById.get(event.runId)?.rmId === account.rmId : false)
+    )
   );
+  const latestDraftHistoryEvent = visibleDraftEvents
+    .filter((event) => Boolean(event.runId))
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
 
   if (account.role === "Manager" && allCustomers) {
     const coverage = getRmCoverage(rms, allCustomers.items, runs, auditEvents);
@@ -95,10 +110,15 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
           hygiene={hygiene}
           coverage={coverage}
         />
+        <PersonalNorthStarTile
+          account={account}
+          customerCount={ownedBook.total}
+          productivity={personalProductivity}
+        />
         <TeamCoverageStrip coverage={coverage} runCount={runs.length} />
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-          <ApprovalQueueCard queue={approvalQueue} customers={allCustomers.items} rms={rms} runs={runs} />
+          <ApprovalQueueCard account={account} queue={approvalQueue} customers={allCustomers.items} rms={rms} runs={runs} />
           <aside className="flex flex-col gap-4">
             <ComplianceHygieneCard hygiene={hygiene} />
           </aside>
@@ -148,8 +168,28 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
         variant="rm"
       />
 
+      <PersonalNorthStarTile
+        account={account}
+        customerCount={ownedBook.total}
+        productivity={personalProductivity}
+      />
+
       {returnedDrafts.length > 0 ? (
         <ReturnedDraftNotice customers={ownedBook.items} returnedDrafts={returnedDrafts} runs={runs} />
+      ) : null}
+
+      {latestDraftHistoryEvent ? (
+        <DraftHistoryPanel
+          auditEvents={auditEvents}
+          customers={ownedBook.items}
+          event={latestDraftHistoryEvent}
+          rms={rms}
+          runs={runs}
+        />
+      ) : null}
+
+      {approvalQueue.length > 0 ? (
+        <ApprovalQueueCard account={account} queue={approvalQueue} customers={ownedBook.items} rms={rms} runs={runs} />
       ) : null}
 
       <WorkspaceQuickStatus
@@ -219,6 +259,53 @@ function ReturnedDraftNotice({
           Open returned draft
         </Link>
       </div>
+    </section>
+  );
+}
+
+function DraftHistoryPanel({
+  auditEvents,
+  customers,
+  event,
+  rms,
+  runs
+}: {
+  auditEvents: AuditEvent[];
+  customers: CustomerProfile[];
+  event: AuditEvent;
+  rms: RMUser[];
+  runs: AgentRun[];
+}) {
+  const customerById = new Map(customers.map((customer) => [customer.customerId, customer]));
+  const runById = new Map(runs.map((run) => [run.runId, run]));
+  const customer = event.customerId ? customerById.get(event.customerId) : undefined;
+  const run = event.runId ? runById.get(event.runId) : undefined;
+  const draft = getDraftReviewSummary(run, event);
+  const history = buildEvidenceTimeline({
+    events: event.runId ? auditEvents.filter((item) => item.runId === event.runId) : [event],
+    run,
+    rms
+  });
+
+  return (
+    <section className="rounded-[16px] border border-[hsl(var(--ai-border)/0.45)] bg-card p-4 shadow-soft">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[13px] font-semibold">Draft history</div>
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+            {customer?.name ?? "This client"} / {draft.channelLabel} / {draft.title}
+          </p>
+        </div>
+        {customer ? (
+          <Link
+            className="rounded-[10px] border border-border-strong bg-card px-3 py-2 text-[12px] font-medium text-foreground hover:border-primary hover:text-primary"
+            href={returnedDraftHref(event)}
+          >
+            Open evidence
+          </Link>
+        ) : null}
+      </div>
+      <HistoryTimeline compact items={history} />
     </section>
   );
 }
@@ -728,14 +815,73 @@ function CoverageMetric({ label, value, warn }: { label: string; value: string; 
   );
 }
 
+/* ============================ Service pulse tile ============================ */
+
+function PersonalNorthStarTile({
+  account,
+  customerCount,
+  productivity
+}: {
+  account: { name: string; role: RMRole; accent: string };
+  customerCount: number;
+  productivity: ReturnType<typeof getProductivityForBook>;
+}) {
+  return (
+    <section
+      className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-[14px] border bg-card px-4 py-3 shadow-soft"
+      style={{ borderLeft: `3px solid hsl(var(--${account.accent}))` }}
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: `hsl(var(--${account.accent}) / 0.12)`, color: `hsl(var(--${account.accent}))` }}
+        >
+          <Activity className="h-4 w-4" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold leading-tight">Service pulse</div>
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Users className="h-3 w-3" aria-hidden />
+            <span className="tabular">{customerCount}</span>
+          </div>
+        </div>
+      </div>
+      <div className="ml-auto flex items-center gap-8">
+        <div className="flex items-center gap-2.5" title="Drafts sent + recorded calls, weekly">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Send className="h-4 w-4" aria-hidden />
+          </span>
+          <div>
+            <div className="font-display text-[22px] font-medium leading-none tracking-tight tabular">
+              {productivity.touchesPerWeek}
+              <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">/wk</span>
+            </div>
+            <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Touches</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5" title="Share of book contacted in the last 90 days">
+          <CoverageRing pct={productivity.contactedIn90dPct} label={`${productivity.contactedIn90dPct}% of book contacted in 90 days`} />
+          <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            90d
+            <br />
+            coverage
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ============================ Manager: Approval queue ============================ */
 
 function ApprovalQueueCard({
+  account,
   queue,
   customers,
   rms,
   runs
 }: {
+  account: { rmId: string; role: RMRole };
   queue: AuditEvent[];
   customers: CustomerProfile[];
   rms: RMUser[];
@@ -744,13 +890,19 @@ function ApprovalQueueCard({
   const customerById = new Map(customers.map((c) => [c.customerId, c]));
   const rmById = new Map(rms.map((r) => [r.rmId, r]));
   const runById = new Map(runs.map((run) => [run.runId, run]));
+  const queueTitle = account.role === "Junior" ? "Awaiting manager review" : "Awaiting your approval";
+  const queueDescription = account.role === "Junior"
+    ? `${queue.length} client-facing drafts are with a manager reviewer.`
+    : `${queue.length} live client-facing drafts - sorted by recency with content and trace`;
+  const footerHref = account.role === "Manager" ? "/manager" : "/customers?priority=high";
+  const footerLabel = account.role === "Manager" ? "See all approvals in Management" : "Open Client Book";
   return (
     <div className="rounded-[16px] border border-border bg-card shadow-soft">
       <header className="flex items-start justify-between gap-4 border-b border-border/60 px-6 py-5">
         <div>
-          <div className="text-[15px] font-semibold">Awaiting your approval</div>
+          <div className="text-[15px] font-semibold">{queueTitle}</div>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            {queue.length} live client-facing drafts - sorted by recency with content and trace
+            {queueDescription}
           </p>
         </div>
         <span
@@ -806,7 +958,13 @@ function ApprovalQueueCard({
                 {draft.guardLabel}
               </span>
               <div className="flex gap-1.5">
-                <ApprovalTransitionControls compact initialState={draft.runState} runId={event.runId} />
+                <ApprovalTransitionControls
+                  compact
+                  initialState={draft.runState}
+                  run={run}
+                  runId={event.runId}
+                  viewer={account}
+                />
                 <Link
                   href={customer ? approvalHref(customer, event, "trace") : "/manager"}
                   className="rounded-[8px] bg-primary px-2.5 py-1.5 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
@@ -826,10 +984,10 @@ function ApprovalQueueCard({
 
       <div className="flex justify-center border-t border-dashed border-border px-4 py-4">
         <Link
-          href="/manager"
+          href={footerHref}
           className="text-[12px] font-medium text-muted-foreground transition hover:text-foreground"
         >
-          See all approvals in Management
+          {footerLabel}
         </Link>
       </div>
     </div>
@@ -1204,7 +1362,7 @@ function avatarToneClass(tone: "danger" | "warning" | "primary" | "muted") {
 
 function ctaForTier(tier: PriorityTier): { label: string; primary: boolean } {
   if (tier === "Critical") return { label: "Edit & send", primary: true };
-  if (tier === "Active") return { label: "Approve brief", primary: false };
+  if (tier === "Active") return { label: "Open brief", primary: false };
   if (tier === "Watch") return { label: "Open Client 360", primary: false };
   return { label: "Touch base", primary: false };
 }

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { CopilotClient, CopilotContext, CopilotRunRequest, CopilotRunResponse, CopilotRuntime } from "@/lib/agent-studio/types";
 import { getPriorityReason, getPriorityTier, getReviewStatus, formatRelativeDays } from "@/lib/domain/client-signals";
 import { getRiskComplianceSummary } from "@/lib/domain/risk-compliance";
+import { approvalForDraftFormat, type DraftApprovalFormat } from "@/lib/copilot/approval-matrix";
 import { applyVocabularyGuardToOutput } from "@/lib/copilot/guard";
 import { composeInlineWhy } from "@/lib/copilot/why";
 import { getLLM } from "@/lib/llm";
@@ -23,16 +24,7 @@ interface DraftAssistOutput {
 }
 
 type DraftFormat =
-  | "concise_touch"
-  | "meeting_confirm"
-  | "review_followup"
-  | "formal_note"
-  | "client_review_pack"
-  | "tax_loss_harvesting"
-  | "earnings_analysis"
-  | "phone_opener"
-  | "maturity_reminder"
-  | "meeting_scheduling";
+  DraftApprovalFormat;
 
 interface DraftFormatConfig {
   label?: string;
@@ -74,7 +66,7 @@ export class DraftAssistClient implements CopilotClient {
       "Tax opportunity scan may identify items for RM and tax professional review, but must not give tax advice.",
       "Earnings/lifecycle analysis should be tied to product maturity, quarterly review, or annual review context.",
       "Return JSON only with keys: headline, why, channel, subject, draft, artifactText, artifactKind, formatLabel, approvalChecklist, evidence, openItems.",
-      "Client-facing report PDFs, tax scans, earnings/lifecycle PDFs, and portfolio change proposals need review-before-use. Routine check-ins, appointment confirmations, and phone scripts are auto-approved after RM review."
+      "Client-facing report PDFs, tax scans, earnings/lifecycle PDFs, and portfolio change proposals need review-before-use. Routine check-ins, appointment confirmations, and phone scripts follow the configured role-based approval matrix."
     ].join("\n");
     const user = buildLLMUserPrompt(request, context, ruleOutput);
     const completion = await llm.complete(system, user, {
@@ -93,8 +85,10 @@ export class DraftAssistClient implements CopilotClient {
       error: formatLlmError(error)
     }));
     const parsedOutput = parseDraftOutput(completion.text);
-    const output = normalizeDraftOutput(parsedOutput ?? ruleOutput, context, ruleOutput);
+    const normalizedOutput = normalizeDraftOutput(parsedOutput ?? ruleOutput, context, ruleOutput);
     const draftFormat = normalizeDraftFormat(context.uiContext?.format);
+    const compliance = getRiskComplianceSummary(context.customer, context.holdings ?? [], context.products ?? []);
+    const output = applyComplianceGateToDraft(normalizedOutput, compliance);
     const guard = applyVocabularyGuardToOutput(output);
     const finishedAt = new Date();
     const runId = `run_${request.module}_${context.customer.customerId}_${Date.now()}`;
@@ -126,10 +120,12 @@ export class DraftAssistClient implements CopilotClient {
           channel: output.channel,
           format: formatLabel(draftFormat),
           artifactKind: output.artifactKind,
+          approvalRequired: approvalForDraft(draftFormat, context.roleAtRun),
           approvalItems: output.approvalChecklist.length,
           openItems: output.openItems.length
         }
       },
+      ...getComplianceGateSteps(compliance),
       {
         name: "Skill-direct completion",
         source: completion.llmProvider,
@@ -154,7 +150,7 @@ export class DraftAssistClient implements CopilotClient {
       llmProvider: completion.llmProvider,
       skillVersion: "draft-assist@phase4-step4",
       state: "prepared",
-      approvalRequired: approvalForDraft(draftFormat, context.roleAtRun),
+      approvalRequired: approvalForDraftWithCompliance(draftFormat, context.roleAtRun, compliance.worst),
       why: composeInlineWhy(steps),
       vocabularyAdjusted: guard.vocabularyAdjusted,
       cached: false,
@@ -190,7 +186,7 @@ function buildDraftOutput(context: CopilotContext): DraftAssistOutput {
   const compliance = getRiskComplianceSummary(customer, holdings, products);
   const review = getReviewStatus(customer.nextReviewDate);
   const draftFormat = normalizeDraftFormat(context.uiContext?.format);
-  const approvalRequired = approvalForDraft(draftFormat, context.roleAtRun);
+  const approvalRequired = approvalForDraftWithCompliance(draftFormat, context.roleAtRun, compliance.worst);
   const topHolding = [...holdings].sort((a, b) => b.value - a.value)[0];
   const topProduct = products.find((product) => product.productId === topHolding?.productId);
   const reason = getPriorityReason(customer);
@@ -261,9 +257,9 @@ function buildDraftOutput(context: CopilotContext): DraftAssistOutput {
     approvalChecklist: [
       `Review status: ${review.label}`,
       `Suitability/K&E evidence: ${compliance.worst}`,
-      approvalRequired === "auto"
-        ? "Routine client service note; no manager approval required."
-        : `${formatName}; manager review required before sending.`
+      approvalRequired === "manager-approval"
+        ? `${formatName}; manager review required before sending.`
+        : `${formatName}; owning RM must explicitly review before sending.`
     ],
     evidence: [
       `Priority reason: ${reason}`,
@@ -272,7 +268,11 @@ function buildDraftOutput(context: CopilotContext): DraftAssistOutput {
     ],
     openItems: [
       context.personalization.rmCustomInput || intent,
-      compliance.worst === "Pass" ? "Confirm final wording before sending." : "Inspect compliance dimensions before sending."
+      compliance.worst === "Block"
+        ? "Suitability refresh is required before client-facing use."
+        : compliance.worst === "Watch"
+          ? "Review the surfaced compliance warning before sending."
+          : "Confirm final wording before sending."
     ]
   };
 }
@@ -564,8 +564,73 @@ function labelForChannel(channel: DraftAssistOutput["channel"]) {
 }
 
 function approvalForDraft(format: DraftFormat, role: AgentRun["roleAtRun"]): AgentRun["approvalRequired"] {
-  if (getFormatConfig(format)?.approval !== "client_artifact") return "auto";
-  return role === "Manager" ? "rm-approval" : "manager-approval";
+  return approvalForDraftFormat(format, role);
+}
+
+function approvalForDraftWithCompliance(
+  format: DraftFormat,
+  role: AgentRun["roleAtRun"],
+  complianceState: string
+): AgentRun["approvalRequired"] {
+  if (complianceState === "Block") {
+    return "manager-approval";
+  }
+  return approvalForDraft(format, role);
+}
+
+function getComplianceGateSteps(compliance: ReturnType<typeof getRiskComplianceSummary>): AgentRun["steps"] {
+  if (compliance.worst === "Block") {
+    return [
+      {
+        name: "Compliance gate",
+        source: "rule_suitability_01",
+        output: {
+          state: "Block",
+          reason: compliance.suitability.detail,
+          action: "Suitability expired -> escalated to manager approval"
+        }
+      }
+    ];
+  }
+  if (compliance.worst === "Watch") {
+    return [
+      {
+        name: "Compliance warning",
+        source: "rule_suitability_01",
+        output: {
+          state: "Watch",
+          reason: compliance.suitability.detail,
+          action: "RM/reviewer warning surfaced"
+        }
+      }
+    ];
+  }
+  return [];
+}
+
+function applyComplianceGateToDraft(
+  output: DraftAssistOutput,
+  compliance: ReturnType<typeof getRiskComplianceSummary>
+): DraftAssistOutput {
+  if (compliance.worst !== "Block") {
+    return output;
+  }
+  const banner = "COMPLIANCE GATE: Suitability expired - client-facing use is blocked until refreshed.";
+  const draft = output.draft.startsWith(banner) ? output.draft : `${banner}\n\n${output.draft}`;
+  return {
+    ...output,
+    draft,
+    artifactText: output.artifactText ? `${banner}\n\n${output.artifactText}` : output.artifactText,
+    why: `${output.why} Suitability is expired, so Beacon escalated the draft to manager approval.`,
+    approvalChecklist: [
+      banner,
+      ...output.approvalChecklist.filter((item) => item !== banner)
+    ].slice(0, 6),
+    openItems: [
+      "Refresh suitability questionnaire before client-facing use.",
+      ...output.openItems.filter((item) => !item.toLowerCase().includes("suitability refresh"))
+    ].slice(0, 6)
+  };
 }
 
 function emailSubjectFor(format: DraftFormat) {

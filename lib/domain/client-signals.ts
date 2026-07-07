@@ -1,4 +1,4 @@
-import type { CustomerProfile, Holding, LifecycleEvent, Product, Transaction } from "@/lib/repo/types";
+import type { Account, CustomerProfile, Holding, LifecycleEvent, Product, Transaction } from "@/lib/repo/types";
 import { toUsd } from "@/lib/utils/currency";
 
 /**
@@ -113,6 +113,27 @@ export function isHeroCustomer(transactions: Transaction[]) {
   return transactions.length >= 95;
 }
 
+export function formatMaskedAccountId(account: Pick<Account, "accountId" | "type">) {
+  return `${formatAccountType(account.type)} ····${stableFourDigitHash(account.accountId)}`;
+}
+
+export type LifecycleEventDisplay = {
+  title: string;
+  description: string;
+  timing: "past" | "today" | "future";
+};
+
+export function getLifecycleEventDisplay(event: LifecycleEvent, asOf?: string): LifecycleEventDisplay {
+  const timing = getLifecycleTiming(event.date, asOf);
+  const date = formatLifecycleDate(event.date);
+  const timingCopy = timing === "past" ? pastLifecycleCopy(event.type, date) : timing === "today" ? todayLifecycleCopy(event.type, date) : futureLifecycleCopy(event.type, date);
+  return {
+    title: event.title,
+    description: timingCopy ?? event.description,
+    timing
+  };
+}
+
 /* ------------------------- Time / freshness helpers ------------------------- */
 
 function daysBetween(later: Date, earlier: Date) {
@@ -180,4 +201,75 @@ function scoreImportance(importance: LifecycleEvent["importance"]) {
   if (importance === "High") return 3;
   if (importance === "Medium") return 2;
   return 1;
+}
+
+function formatAccountType(type: Account["type"]) {
+  return type.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+function stableFourDigitHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return String(hash % 10000).padStart(4, "0");
+}
+
+function getLifecycleTiming(iso: string, asOf?: string): LifecycleEventDisplay["timing"] {
+  const days = daysUntil(iso, asOf) ?? 0;
+  if (days < 0) return "past";
+  if (days === 0) return "today";
+  return "future";
+}
+
+function formatLifecycleDate(iso: string) {
+  const parsed = new Date(`${iso}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+function pastLifecycleCopy(type: LifecycleEvent["type"], date: string) {
+  switch (type) {
+    case "Review":
+      return `Review was due on ${date} - prepare agenda, holdings context, and approval evidence.`;
+    case "Maturity":
+      return `Matured on ${date} - prepare reinvestment follow-up and liquidity notes.`;
+    case "LifeEvent":
+      return `Life event was recorded on ${date} - prepare a focused follow-up before the next client touch.`;
+    case "Market":
+      return `Market movement was recorded on ${date} - prepare a concise impact summary.`;
+    case "Portfolio":
+      return `Portfolio drift was visible on ${date} - prepare the holdings evidence before review.`;
+  }
+}
+
+function todayLifecycleCopy(type: LifecycleEvent["type"], date: string) {
+  switch (type) {
+    case "Review":
+      return `Review is due today, ${date} - prepare agenda, holdings context, and approval evidence.`;
+    case "Maturity":
+      return `Matures today, ${date} - prepare reinvestment follow-up and liquidity notes.`;
+    case "LifeEvent":
+      return `Life event is scheduled for today, ${date} - prepare a focused client check-in.`;
+    case "Market":
+      return `Market movement is active today, ${date} - prepare a concise impact summary.`;
+    case "Portfolio":
+      return `Portfolio drift is visible today, ${date} - prepare the holdings evidence before review.`;
+  }
+}
+
+function futureLifecycleCopy(type: LifecycleEvent["type"], date: string) {
+  switch (type) {
+    case "Review":
+      return `Review upcoming on ${date} - prepare agenda, holdings context, and approval evidence.`;
+    case "Maturity":
+      return `Maturity approaching on ${date} - prepare reinvestment context and liquidity notes.`;
+    case "LifeEvent":
+      return `Life event upcoming on ${date} - prepare a focused check-in before the next client touch.`;
+    case "Market":
+      return `Market movement may affect the portfolio on ${date} - prepare a concise impact summary.`;
+    case "Portfolio":
+      return `Portfolio drift review upcoming on ${date} - prepare the holdings evidence before review.`;
+  }
 }

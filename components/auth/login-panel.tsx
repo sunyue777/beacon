@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, Check, Eye, Moon, ShieldCheck, Sun, Users } from "lucide-react";
 import { useTheme } from "next-themes";
 import { demoAccounts, getRoleLabel, type DemoAccount } from "@/lib/auth/accounts";
@@ -17,13 +17,13 @@ const roleStats: Record<string, RoleStats> = {
     directBook: "77 owned clients",
     visibleScope: "My book only",
     approvalControl: "Draft review required",
-    authority: "Prepare briefs and drafts inside assigned book; client-facing output needs review."
+    authority: "Prepare briefs and drafts inside assigned book; every client-facing draft needs manager review."
   },
   rm_mid_01: {
     directBook: "296 owned clients",
     visibleScope: "My book only",
     approvalControl: "Routine self-approval",
-    authority: "Prepare, prioritize, draft and approve routine follow-up inside the direct book."
+    authority: "Prepare, prioritize, draft and explicitly self-approve routine follow-up inside the direct book."
   },
   rm_manager_01: {
     directBook: "222 owned clients",
@@ -311,7 +311,9 @@ function ScopeItem({
 
 function LoginThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && theme === "dark";
   return (
     <button
       aria-label="Toggle theme"

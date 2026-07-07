@@ -21,7 +21,7 @@ export const demoAccounts: DemoAccount[] = [
     role: "Junior",
     title: "Junior Relationship Manager",
     scope: "Smaller mass-affluent book, Standard tier",
-    permissions: ["View assigned customers", "Generate briefs and drafts", "Client-facing drafts require review"],
+    permissions: ["View assigned customers", "Generate briefs and drafts", "All client-facing drafts require manager review"],
     recommendedPath: "/workspace",
     accent: "role-junior"
   },
@@ -31,7 +31,7 @@ export const demoAccounts: DemoAccount[] = [
     role: "MidLevel",
     title: "Mid-level Relationship Manager",
     scope: "Larger affluent book, Premium and VIP tier",
-    permissions: ["View assigned affluent customers", "Use next best action", "Approve routine drafts"],
+    permissions: ["View assigned affluent customers", "Use next best action", "Self-approve routine drafts"],
     recommendedPath: "/workspace",
     accent: "role-mid"
   },

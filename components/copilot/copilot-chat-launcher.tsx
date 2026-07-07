@@ -435,6 +435,7 @@ export function CopilotChatLauncher({ customerId, defaultEngine = "mock" }: { cu
                   generatedAt={result.output.finishedAt}
                   summary={termOutput.plainLanguage ?? "Knowledge answer prepared for RM comprehension."}
                   run={result.output}
+                  evidenceContext={{ customerName: customerScopeName ?? "Current client" }}
                 />
               </div>
             ) : null}
@@ -446,6 +447,7 @@ export function CopilotChatLauncher({ customerId, defaultEngine = "mock" }: { cu
                 generatedAt={result.output.finishedAt}
                 summary={draftOutput.why ?? "Draft prepared for RM review."}
                 run={result.output}
+                evidenceContext={{ customerName: customerScopeName ?? "Current client" }}
               >
                 <div
                   className="rounded-[12px] border p-3"

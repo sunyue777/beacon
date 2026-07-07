@@ -12,7 +12,11 @@ function event(overrides: Partial<AuditEvent>): AuditEvent {
     customerId: overrides.customerId ?? "cust_0001",
     runId: overrides.runId,
     timestamp: overrides.timestamp ?? "2026-05-17T01:00:00.000Z",
-    payload: overrides.payload ?? {}
+    payload:
+      overrides.payload ??
+      (overrides.type === undefined || overrides.type === "draft.created" || overrides.type === "draft.edited"
+        ? { approvalRequired: "manager-approval" }
+        : {})
   };
 }
 

@@ -47,9 +47,17 @@ export function getApprovalQueueForAccount(
 ) {
   const queue = getApprovalQueue(events);
   if (account.role === "Manager") {
-    return queue.filter((event) => event.actorId !== account.rmId);
+    return queue.filter((event) => event.actorId !== account.rmId && approvalRequiredFromEvent(event) === "manager-approval");
   }
   return queue.filter((event) => event.actorId === account.rmId);
+}
+
+function approvalRequiredFromEvent(event: AuditEvent): AgentRun["approvalRequired"] | undefined {
+  const value = event.payload?.approvalRequired;
+  if (value === "auto" || value === "rm-approval" || value === "manager-approval") {
+    return value;
+  }
+  return undefined;
 }
 
 /**

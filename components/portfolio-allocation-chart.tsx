@@ -89,8 +89,21 @@ function AllocationBars({
           <span className="font-medium">{data[0]?.name ?? "Portfolio"}</span>
           <span className="font-semibold">{showValues ? formatCurrency(data[0]?.value ?? 0, "USD", { compact: true }) : `${(data[0]?.pct ?? 0).toFixed(1)}%`}</span>
         </div>
-        <div className="h-3 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full" style={{ background: colors[0], width: `${Math.min(100, Math.max(0, data[0]?.pct ?? 0))}%` }} />
+        <div
+          className="h-3 overflow-hidden rounded-full border"
+          style={{
+            background: "hsl(var(--primary) / 0.16)",
+            borderColor: "hsl(var(--primary) / 0.28)"
+          }}
+        >
+          <div
+            className="h-full rounded-full"
+            style={{
+              background: "hsl(var(--primary))",
+              boxShadow: "inset 0 0 0 1px hsl(var(--primary-foreground) / 0.22)",
+              width: `${Math.min(100, Math.max(0, data[0]?.pct ?? 0))}%`
+            }}
+          />
         </div>
       </div>
       <div className="rounded-md border border-dashed border-border bg-muted/35 px-3 py-2 text-xs leading-5 text-muted-foreground">

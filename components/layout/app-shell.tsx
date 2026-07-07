@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Lock, Moon, Sun } from "lucide-react";
@@ -141,7 +141,9 @@ function NavLink({ href, label, locked }: { href: string; label: string; locked?
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && theme === "dark";
   return (
     <button
       aria-label="Toggle theme"

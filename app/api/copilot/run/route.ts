@@ -126,6 +126,9 @@ export async function POST(request: Request) {
     }
     await pushRuntimeAgentRun(result.output);
     await writeOutputAudit(account, result.output.runId, result.output.customerId);
+    if (hasComplianceGate(result.output)) {
+      await writeComplianceGateAudit(account, result.output);
+    }
     if (result.output.moduleId === "draft_assist" && result.output.approvalRequired !== "auto") {
       await writeDraftCreatedAudit(account, result.output);
     }
@@ -220,6 +223,29 @@ async function writeOutputAudit(account: { rmId: string; role: AuditEvent["actor
     timestamp: new Date().toISOString(),
     payload: {
       source: "api/copilot/run"
+    }
+  };
+  await pushRuntimeAudit(event);
+}
+
+function hasComplianceGate(run: AgentRun) {
+  return run.steps.some((step) => step.name === "Compliance gate");
+}
+
+async function writeComplianceGateAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, run: AgentRun) {
+  const step = run.steps.find((item) => item.name === "Compliance gate");
+  const event: AuditEvent = {
+    eventId: `compliance_gate_${account.rmId}_${Date.now()}`,
+    type: "compliance.gate.triggered",
+    actorId: account.rmId,
+    actorRole: account.role,
+    customerId: run.customerId,
+    runId: run.runId,
+    timestamp: new Date().toISOString(),
+    payload: {
+      source: "api/copilot/run",
+      module: run.moduleId,
+      gate: step?.output
     }
   };
   await pushRuntimeAudit(event);

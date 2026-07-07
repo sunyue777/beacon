@@ -329,7 +329,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 <div className="min-w-0">
                   <div className="truncate text-[17px] font-semibold">{customer.name}</div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    <TierBadge tier={tier} />
+                    <TierBadge tier={tier} title={`Priority score ${customer.priorityScore}. ${priorityReason}`} />
                     {customer.serviceTier !== "Standard" ? <ServiceTierBadge tier={customer.serviceTier} /> : null}
                   </div>
                   <div
@@ -351,7 +351,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                   <PriorityReasonText reason={priorityReason} />
                 </div>
                 <div className="mt-1.5 font-mono text-[11px] text-muted-foreground tabular">
-                  {formatCurrency(customer.totalAum, customer.currency, { compact: true })} · score {customer.priorityScore}
+                  <span title={`Priority score ${customer.priorityScore}. ${priorityReason}`}>
+                    {formatCurrency(customer.totalAum, customer.currency, { compact: true })} · {tier} priority
+                  </span>
                   {rm ? ` · ${rm.name}` : ""}
                 </div>
               </Link>
@@ -654,7 +656,7 @@ function SortChip({
   );
 }
 
-function TierBadge({ tier }: { tier: PriorityTier }) {
+function TierBadge({ tier, title }: { tier: PriorityTier; title?: string }) {
   const tone = getPriorityTierTone(tier);
   const cls =
     tone === "danger"
@@ -667,6 +669,7 @@ function TierBadge({ tier }: { tier: PriorityTier }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${cls}`}
+      title={title}
     >
       {tier}
     </span>

@@ -1,6 +1,6 @@
 {
   "name": "dyna-beacon",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -10,8 +10,9 @@
     "lint": "next lint",
     "generate-data": "tsx scripts/generate-data.ts",
     "validate-data": "tsx scripts/validate-data.ts",
-    "check-data": "npm run generate-data && npm run validate-data",
-    "refresh-data": "npm run generate-data && npm run validate-data",
+    "check-architecture": "tsx scripts/check-architecture.ts",
+    "check-data": "npm run generate-data && npm run validate-data && npm run check-architecture",
+    "refresh-data": "npm run check-data",
     "test": "npm run test:auth && npm run test:copilot && npm run test:voice",
     "test:auth": "tsx --test tests/auth/*.test.ts",
     "test:copilot": "tsx --test tests/copilot/*.test.ts",

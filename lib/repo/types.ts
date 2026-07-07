@@ -203,6 +203,7 @@ export interface AuditEvent {
     | "client.opened"
     | "role.permission.required"
     | "role.escalation"
+    | "compliance.gate.triggered"
     | "session.started"
     | "session.switched"
     | "voice.call.started"

@@ -185,6 +185,7 @@ export function VoiceMvpPanel({ customerId, customerName }: { customerId: string
             generatedAt={agentRun.finishedAt}
             summary={(agentRun.output as { summary?: string }).summary ?? "Voice summary prepared with trace."}
             run={agentRun}
+            evidenceContext={{ customerName }}
           />
         </div>
       ) : null}

@@ -80,6 +80,53 @@ test("canTransitionAgentRun allows Manager approval for manager-approval outputs
   assert.equal(result.ok, true);
 });
 
+test("canTransitionAgentRun restricts return-for-edit to the reviewer lane", () => {
+  const juniorOwnManagerDraft = canTransitionAgentRun(
+    run({ approvalRequired: "manager-approval", rmId: "rm_junior_01", roleAtRun: "Junior" }),
+    "rejected",
+    { rmId: "rm_junior_01", role: "Junior" }
+  );
+  assert.equal(juniorOwnManagerDraft.ok, false);
+  if (!juniorOwnManagerDraft.ok) assert.equal(juniorOwnManagerDraft.reason, "manager review required");
+
+  const managerReturn = canTransitionAgentRun(
+    run({ approvalRequired: "manager-approval", rmId: "rm_junior_01", roleAtRun: "Junior" }),
+    "rejected",
+    { rmId: "rm_manager_01", role: "Manager" }
+  );
+  assert.equal(managerReturn.ok, true);
+});
+
+test("canTransitionAgentRun rejects originator approving manager-approval output", () => {
+  const result = canTransitionAgentRun(
+    run({ approvalRequired: "manager-approval", rmId: "rm_manager_01", roleAtRun: "Manager" }),
+    "approved",
+    { rmId: "rm_manager_01", role: "Manager" }
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, "originator cannot approve own draft");
+});
+
+test("canTransitionAgentRun requires demo waiver for Manager own client artifact", () => {
+  const managerArtifact = run({
+    approvalRequired: "rm-approval",
+    rmId: "rm_manager_01",
+    roleAtRun: "Manager",
+    output: { artifactKind: "pdf", formatLabel: "client-review-pack" }
+  });
+  const blocked = canTransitionAgentRun(managerArtifact, "approved", { rmId: "rm_manager_01", role: "Manager" });
+  assert.equal(blocked.ok, false);
+  if (!blocked.ok) assert.equal(blocked.reason, "four-eyes waiver required for own manager draft");
+
+  const waived = canTransitionAgentRun(
+    managerArtifact,
+    "approved",
+    { rmId: "rm_manager_01", role: "Manager" },
+    { fourEyesWaived: true }
+  );
+  assert.equal(waived.ok, true);
+});
+
 test("auditTypeForTransition maps state transitions to draft audit events", () => {
   assert.equal(auditTypeForTransition("edited"), "draft.edited");
   assert.equal(auditTypeForTransition("approved"), "draft.approved");

@@ -1,9 +1,14 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight, FileSearch, X } from "lucide-react";
+import { EvidenceExportButton } from "@/components/evidence/evidence-export-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { canTransitionAgentRun } from "@/lib/copilot/approval";
+import { runRequiresFourEyesWaiver } from "@/lib/copilot/approval-matrix";
+import { buildEvidencePack, type EvidencePackInput } from "@/lib/domain/evidence-pack";
 import type { AgentRun, RMRole } from "@/lib/repo/types";
 import { cn } from "@/lib/utils/cn";
 
@@ -13,6 +18,8 @@ export function AIOutput({
   generatedAt,
   summary,
   run,
+  evidenceContext,
+  viewerRmId,
   viewerRole,
   children
 }: {
@@ -21,9 +28,12 @@ export function AIOutput({
   generatedAt?: string;
   summary: string;
   run?: AgentRun;
+  evidenceContext?: Omit<EvidencePackInput, "run" | "title">;
+  viewerRmId?: string;
   viewerRole?: RMRole;
   children?: React.ReactNode;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [currentRun, setCurrentRun] = useState(run);
   const [transitioning, setTransitioning] = useState<string | null>(null);
@@ -32,13 +42,28 @@ export function AIOutput({
   const state = currentRun?.state ?? "prepared";
   const canReview = Boolean(currentRun?.runId && currentRun.approvalRequired && currentRun.approvalRequired !== "auto" && state !== "sent" && state !== "discarded");
   const activeViewerRole = viewerRole ?? currentRun?.roleAtRun;
+  const activeViewerRmId = viewerRmId ?? currentRun?.rmId;
   const approvalRequirement = formatApprovalRequirement(currentRun?.approvalRequired);
-  const canApprove =
-    currentRun?.approvalRequired === "manager-approval"
-      ? activeViewerRole === "Manager"
-      : currentRun?.approvalRequired === "rm-approval"
-        ? activeViewerRole !== "Junior"
-        : false;
+  const viewerActor = activeViewerRmId && activeViewerRole ? { rmId: activeViewerRmId, role: activeViewerRole } : undefined;
+  const needsFourEyesWaiver = Boolean(currentRun && viewerActor && runRequiresFourEyesWaiver(currentRun, viewerActor));
+  const complianceGate = currentRun?.steps.find((step) => step.name === "Compliance gate");
+  const evidencePack = currentRun
+    ? buildEvidencePack({
+        ...evidenceContext,
+        kind: "trace",
+        title,
+        run: currentRun
+      })
+    : undefined;
+  const currentRunWithState = currentRun ? { ...currentRun, state } : undefined;
+  const approveCheck = currentRunWithState && viewerActor
+    ? canTransitionAgentRun(currentRunWithState, "approved", viewerActor)
+    : { ok: false as const, reason: "viewer not available" };
+  const rejectCheck = currentRunWithState && viewerActor
+    ? canTransitionAgentRun(currentRunWithState, "rejected", viewerActor)
+    : { ok: false as const, reason: "viewer not available" };
+  const canApprove = approveCheck.ok;
+  const canReturn = rejectCheck.ok;
 
   useEffect(() => {
     setCurrentRun(run);
@@ -60,26 +85,34 @@ export function AIOutput({
     const payload = (await response.json()) as { ok: boolean; reason?: string; output?: AgentRun };
     if (payload.ok && payload.output) {
       setCurrentRun(payload.output);
+      router.refresh();
     } else {
       setTransitionError(payload.reason ?? "state transition failed");
     }
     setTransitioning(null);
   }
 
-  async function approveAndSendRun() {
+  async function approveAndSendRun(options: { fourEyesWaived?: boolean } = {}) {
     if (!currentRun?.runId) return;
     setTransitioning("approved");
     setTransitionError(null);
-    const approved = await postRunTransition(currentRun.runId, "approved", `${title} approved before send`);
+    const approved = await postRunTransition(
+      currentRun.runId,
+      "approved",
+      options.fourEyesWaived ? `${title} approved with demo four-eyes waiver` : `${title} approved before send`,
+      options
+    );
     if (!approved.ok || !approved.output) {
       setTransitionError(approved.reason ?? "approval failed");
       setTransitioning(null);
       return;
     }
     setCurrentRun(approved.output);
+    router.refresh();
     const sent = await postRunTransition(currentRun.runId, "sent", `${title} sent after approval`);
     if (sent.ok && sent.output) {
       setCurrentRun(sent.output);
+      router.refresh();
     } else {
       setTransitionError(sent.reason ?? "send failed after approval");
     }
@@ -140,13 +173,20 @@ export function AIOutput({
                       ) : null}
                       {canApprove ? (
                         <>
-                          <StateButton tone="approve" disabled={state === "approved"} loading={transitioning === "approved"} onClick={approveAndSendRun}>
+                          <StateButton tone="approve" disabled={state === "approved"} loading={transitioning === "approved"} onClick={() => approveAndSendRun()}>
                             Approve & send
                           </StateButton>
-                          <StateButton tone="return" disabled={state === "approved"} loading={transitioning === "rejected"} onClick={() => transitionRun("rejected")}>
-                            Return for edit
-                          </StateButton>
+                          {canReturn ? (
+                            <StateButton tone="return" disabled={state === "approved"} loading={transitioning === "rejected"} onClick={() => transitionRun("rejected")}>
+                              Return for edit
+                            </StateButton>
+                          ) : null}
                         </>
+                      ) : null}
+                      {needsFourEyesWaiver ? (
+                        <StateButton tone="approve" disabled={state === "approved"} loading={transitioning === "approved"} onClick={() => approveAndSendRun({ fourEyesWaived: true })}>
+                          Approve own draft - four-eyes waived in demo
+                        </StateButton>
                       ) : null}
                     </>
                   ) : null}
@@ -160,6 +200,7 @@ export function AIOutput({
                   }}
                 >
                   {transitionError ?? approvalRequirement}
+                  {complianceGate ? " Requires suitability refresh before client-facing use." : ""}
                 </div>
               </div>
             </div>
@@ -252,6 +293,12 @@ export function AIOutput({
                 ))}
               </div>
             </div>
+
+            {evidencePack ? (
+              <div className="flex justify-end border-t border-border pt-4">
+                <EvidenceExportButton label="Export this trace" pack={evidencePack} />
+              </div>
+            ) : null}
           </div>
         </aside>
       </div>
@@ -319,12 +366,13 @@ function StateButton({
 async function postRunTransition(
   runId: string,
   transition: "edited" | "approved" | "rejected" | "discarded" | "sent",
-  note: string
+  note: string,
+  options: { fourEyesWaived?: boolean } = {}
 ) {
   const response = await fetch(`/api/copilot/runs/${encodeURIComponent(runId)}/transition`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transition, note })
+    body: JSON.stringify({ transition, note, ...options })
   });
   return (await response.json()) as { ok: boolean; reason?: string; output?: AgentRun };
 }
@@ -377,4 +425,3 @@ function formatUnknown(value: unknown) {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
-

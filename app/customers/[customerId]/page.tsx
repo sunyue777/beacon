@@ -16,14 +16,18 @@ import { PortfolioAllocationChart } from "@/components/portfolio-allocation-char
 import { NextActionsPanel, type NextActionItem } from "@/components/copilot/next-actions-panel";
 import { TalkingPointsSurface, type SuggestedTalkingPoint } from "@/components/copilot/talking-points-surface";
 import { AIOutput } from "@/components/ai/ai-output";
+import { HistoryTimeline } from "@/components/evidence/history-timeline";
 import {
+  formatMaskedAccountId,
   formatRelativeDays,
   getContactFreshnessTone,
+  getLifecycleEventDisplay,
   getPriorityReason,
   getPriorityTier,
   getPriorityTierTone,
   getReviewStatus
 } from "@/lib/domain/client-signals";
+import { buildEvidenceTimeline } from "@/lib/domain/evidence-pack";
 import { getRiskAlignment, getRiskComplianceSummary, type ComplianceState } from "@/lib/domain/risk-compliance";
 import { RiskAlignmentCard } from "@/components/risk/risk-alignment-card";
 import { getCurrentAccount } from "@/lib/auth/server-session";
@@ -31,7 +35,7 @@ import { getDefaultEngine, type DemoEngine } from "@/lib/config/demo-engine";
 import { getRepo } from "@/lib/repo";
 import { toUsd } from "@/lib/utils/currency";
 import { formatCurrency } from "@/lib/utils/format";
-import type { Account, AgentRun, AuditEvent, CustomerProfile, Holding, LifecycleEvent, Product, RMRole, Transaction } from "@/lib/repo/types";
+import type { Account, AgentRun, AuditEvent, CustomerProfile, Holding, LifecycleEvent, Product, RMRole, RMUser, Transaction } from "@/lib/repo/types";
 
 type PageProps = {
   params: Promise<{ customerId: string }>;
@@ -113,14 +117,15 @@ export default async function CustomerPage({ params, searchParams }: PageProps) 
   if (!customer) notFound();
   if (!canView) return <PermissionRequired accountName={account.name} />;
 
-  const [accounts, holdings, allTransactions, events, runs, products, auditEvents] = await Promise.all([
+  const [accounts, holdings, allTransactions, events, runs, products, auditEvents, rms] = await Promise.all([
     repo.listAccounts(customerId),
     repo.listHoldings(customerId),
     repo.listTransactions(customerId),
     repo.listLifecycleEvents(customerId),
     repo.listAgentRuns({ customerId, limit: 6 }),
     repo.listProducts(),
-    repo.listAuditEvents({ customerId })
+    repo.listAuditEvents({ customerId }),
+    repo.listRms()
   ]);
 
   const visibleTransactions = showFullTransactions ? allTransactions : allTransactions.slice(0, 10);
@@ -160,8 +165,11 @@ export default async function CustomerPage({ params, searchParams }: PageProps) 
           compliance={compliance}
           customer={customer}
           event={reviewEvent}
+          events={auditEvents}
           mode={reviewMode}
+          rms={rms}
           run={reviewRun}
+          viewerRmId={account.rmId}
           viewerRole={account.role}
         />
       ) : null}
@@ -387,21 +395,32 @@ function ApprovalReviewPanel({
   customer,
   compliance,
   event,
+  events,
   mode,
+  rms,
   run,
+  viewerRmId,
   viewerRole
 }: {
   customer: CustomerProfile;
   compliance: ReturnType<typeof getRiskComplianceSummary>;
   event?: AuditEvent;
+  events: AuditEvent[];
   mode: "approval" | "trace";
+  rms: RMUser[];
   run?: AgentRun;
+  viewerRmId: string;
   viewerRole: RMRole;
 }) {
   const review = getReviewStatus(customer.nextReviewDate);
   const reviewContent = formatReviewContent(run, customer);
   const title = "AI trace review";
   const status = mode === "approval" ? "Pending review" : "Trace opened";
+  const history = buildEvidenceTimeline({
+    events: run?.runId ? events.filter((item) => item.runId === run.runId) : event ? [event] : [],
+    run,
+    rms
+  });
   return (
     <section
       className="sticky top-[88px] z-30 rounded-[18px] border bg-card p-4 shadow-lift"
@@ -431,6 +450,8 @@ function ApprovalReviewPanel({
           generatedAt={run.finishedAt}
           summary={`${customer.name} / ${review.label} / ${compliance.worst} compliance state`}
           run={run}
+          evidenceContext={{ customer, events, rms }}
+          viewerRmId={viewerRmId}
           viewerRole={viewerRole}
         >
           <div className="rounded-[12px] border border-[hsl(var(--ai-border)/0.5)] bg-background p-3">
@@ -444,8 +465,11 @@ function ApprovalReviewPanel({
               {reviewContent}
             </p>
             <div className="mt-2 text-[11px] text-muted-foreground">
-              Event: {event?.type ?? "latest AI run"} / Run: {run.runId}
+              Evidence retained from draft history, client context, and review state.
             </div>
+          </div>
+          <div className="mt-3">
+            <HistoryTimeline compact items={history} />
           </div>
         </AIOutput>
       ) : (
@@ -607,7 +631,7 @@ function KpiStrip({
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <span>
               {yoy >= 0 ? "up" : "down"} {Math.abs(yoy).toFixed(1)}% YoY / 30d flow{" "}
-              {flow >= 0 ? "+" : "-"}{formatCurrency(Math.abs(flow), customer.currency, { compact: true })}
+              {formatSignedCompactCurrency(flow, customer.currency)}
             </span>
             <SyntheticPreviewChip />
           </span>
@@ -624,11 +648,11 @@ function KpiStrip({
         label="Priority"
         value={getPriorityTier(customer.priorityScore)}
         delta={
-          <span>
-            score{" "}
-            <span className="cursor-help underline decoration-dotted underline-offset-2" title={priorityTooltip}>
-              {customer.priorityScore}
-            </span>
+          <span
+            className="cursor-help underline decoration-dotted underline-offset-2"
+            title={priorityTooltip}
+          >
+            Tier trace
           </span>
         }
         deltaTone="muted"
@@ -703,6 +727,7 @@ function buildPriorityScoreTooltip(customer: CustomerProfile) {
   const reviewBoost = customer.nextReviewDate < new Date().toISOString().slice(0, 10) ? 8 : 0;
   const zeroAumPenalty = customer.totalAum === 0 ? -40 : 0;
   return [
+    `Priority score ${customer.priorityScore}`,
     "Demo priority score = base 38",
     `${customer.tags.length} signal tag(s) x 11 = +${tagWeight}`,
     eventBoost ? `event boost = +${eventBoost}` : "no event boost",
@@ -710,6 +735,20 @@ function buildPriorityScoreTooltip(customer: CustomerProfile) {
     zeroAumPenalty ? "zero-AUM dormant penalty = -40" : "no zero-AUM penalty",
     "plus bounded demo jitter for variety"
   ].join("; ");
+}
+
+function formatSignedCompactCurrency(value: number, currency: string) {
+  const magnitude = Math.abs(value);
+  const formatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    notation: magnitude >= 1_000 ? "compact" : "standard",
+    compactDisplay: "short",
+    maximumFractionDigits: magnitude >= 1_000 && magnitude < 10_000 ? 1 : 0,
+    minimumFractionDigits: 0
+  }).format(magnitude);
+  if (value === 0) return formatted;
+  return `${value > 0 ? "+" : "-"}${formatted}`;
 }
 
 /* ============================== AI cards ============================== */
@@ -935,6 +974,7 @@ function AccountsTab({ accounts }: { accounts: Account[] }) {
       <CardContent className="space-y-3 pt-4">
         {accounts.map((account, index) => {
           const accent = index % 3 === 0 ? "brand-blue" : index % 3 === 1 ? "brand-navy" : "brand-gold";
+          const maskedAccountId = formatMaskedAccountId(account);
           return (
             <div
               className="grid gap-4 rounded-[14px] border bg-background/72 p-4 transition hover:bg-card lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.45fr)]"
@@ -950,7 +990,12 @@ function AccountsTab({ accounts }: { accounts: Account[] }) {
                   <Badge variant={account.status === "Active" ? "success" : "warning"}>{account.status}</Badge>
                   <Badge variant="outline">{account.currency}</Badge>
                 </div>
-                <div className="mt-1 font-mono text-[11px] text-muted-foreground tabular">{account.accountId}</div>
+                <div
+                  className="mt-1 font-mono text-[11px] text-muted-foreground tabular"
+                  title={account.accountId}
+                >
+                  {maskedAccountId}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm xl:grid-cols-4">
                 <Info label="Cash" value={formatCurrency(account.cashBalance, account.currency)} />
@@ -1117,16 +1162,19 @@ function ActivityTab({
               <p className="mt-1 text-[11px] text-muted-foreground">Signals for service timing, not transaction records.</p>
             </header>
             <div className="flex-1 px-4 py-2">
-              {events.map((event) => (
-                <div className="border-b border-dashed border-border py-3 last:border-0" key={event.eventId}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-mono text-[11px] text-muted-foreground tabular">{formatTimelineDate(event.date)}</div>
-                    <Badge variant={event.importance === "High" ? "warning" : "secondary"}>{event.importance}</Badge>
+              {events.map((event) => {
+                const display = getLifecycleEventDisplay(event);
+                return (
+                  <div className="border-b border-dashed border-border py-3 last:border-0" key={event.eventId}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-mono text-[11px] text-muted-foreground tabular">{formatTimelineDate(event.date)}</div>
+                      <Badge variant={event.importance === "High" ? "warning" : "secondary"}>{event.importance}</Badge>
+                    </div>
+                    <div className="mt-1.5 text-[13px] font-medium leading-5">{display.title}</div>
+                    <div className="mt-0.5 text-[12px] leading-5 text-muted-foreground">{display.description}</div>
                   </div>
-                  <div className="mt-1.5 text-[13px] font-medium leading-5">{event.title}</div>
-                  <div className="mt-0.5 text-[12px] leading-5 text-muted-foreground">{event.description}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>
@@ -1335,7 +1383,7 @@ function AIInsightsTab({
     <section className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
         <AIRailCard tag="AI Suggested Talking Points" timestamp="4 selectable points">
-          <TalkingPointsSurface customerId={customer.customerId} suggestedPoints={suggestedPoints} defaultEngine={defaultEngine} />
+          <TalkingPointsSurface customerId={customer.customerId} customerName={customer.name} suggestedPoints={suggestedPoints} defaultEngine={defaultEngine} />
         </AIRailCard>
         <AIRailCard tag="Next Best Action" timestamp={latestRun ? "trace ready" : "ranked"}>
           <NextActionsPanel actions={nextActions} customerId={customer.customerId} canExecute={canTouchCustomer} />
@@ -1552,14 +1600,15 @@ function RiskReviewDisclosure({
 }
 
 function EventCard({ event }: { event: LifecycleEvent }) {
+  const display = getLifecycleEventDisplay(event);
   return (
     <div className="rounded-md border border-border bg-background p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold">{event.title}</div>
+        <div className="text-sm font-semibold">{display.title}</div>
         <Badge variant={event.importance === "High" ? "warning" : "secondary"}>{event.importance}</Badge>
       </div>
       <div className="mt-1 text-xs text-muted-foreground">{event.date} - {event.type}</div>
-      <p className="mt-2 text-xs leading-5 text-muted-foreground">{event.description}</p>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">{display.description}</p>
     </div>
   );
 }
@@ -1618,12 +1667,15 @@ function buildCommunicationLog(customer: CustomerProfile, auditEvents: AuditEven
   const lifecycleRows = events
     .filter((event) => event.type === "Review" || event.type === "LifeEvent")
     .slice(0, 2)
-    .map((event) => ({
-      date: event.date,
-      channel: "RM note",
-      actor: "Dyna Beacon",
-      summary: `${event.title}: ${event.description}`
-    }));
+    .map((event) => {
+      const display = getLifecycleEventDisplay(event);
+      return {
+        date: event.date,
+        channel: "RM note",
+        actor: "Dyna Beacon",
+        summary: `${display.title}: ${display.description}`
+      };
+    });
   return [
     {
       date: customer.lastContactedAt ?? "No date",
