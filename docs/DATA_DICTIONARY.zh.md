@@ -17,10 +17,10 @@ lib/repo/local-json-repo.ts -> data/asia-wealth/bundle.json
 Runtime `AgentRun` 与 `AuditEvent` 存在内存 ring buffer：
 
 ```text
-lib/repo/runtime-events.ts
+lib/repo/runtime-store.ts
 ```
 
-这适合本地 demo。部署到 Vercel 后，如果审批队列需要跨冷启动保留，应接一个轻量持久化层。
+这适合本地 demo。部署到 Vercel 后，如果配置 Upstash/Vercel KV REST 凭据，运行时审计、AgentRun 与语音 transcript 会持久化到轻量 store。
 
 ## 2. 当前规模
 
@@ -68,7 +68,7 @@ lib/repo/runtime-events.ts
 | `lib/repo/repo.ts` | Repo interface |
 | `lib/repo/local-json-repo.ts` | 本地 JSON repo |
 | `lib/repo/remote-api-repo.ts` | 未来 remote API stub |
-| `lib/repo/runtime-events.ts` | runtime AgentRun / AuditEvent ring buffer |
+| `lib/repo/runtime-store.ts` | runtime AgentRun / AuditEvent / Transcript store |
 | `lib/domain/client-signals.ts` | priority、review、contact freshness |
 | `lib/domain/risk-compliance.ts` | suitability / K&E / concentration / currency / liquidity / mismatch |
 | `lib/domain/governance.ts` | approval queue、returned drafts、coverage、productivity、hygiene |

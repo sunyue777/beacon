@@ -7,8 +7,8 @@ import { buildCopilotContext } from "@/lib/copilot/context";
 import { getClient } from "@/lib/copilot/dispatch";
 import { getCopilotModuleConfig } from "@/lib/copilot/module-map";
 import { getRepo } from "@/lib/repo";
-import { pushRuntimeAgentRun, pushRuntimeAudit } from "@/lib/repo/runtime-store";
-import type { Account, AuditEvent, CustomerProfile, Holding, LifecycleEvent, MarketSnapshot, Product, Transaction } from "@/lib/repo/types";
+import { incrementRuntimeCounter, pushRuntimeAgentRun, pushRuntimeAudit } from "@/lib/repo/runtime-store";
+import type { Account, AgentRun, AuditEvent, CustomerProfile, Holding, LifecycleEvent, MarketSnapshot, Product, Transaction } from "@/lib/repo/types";
 
 export async function POST(request: Request) {
   let payload: CopilotRunRequest;
@@ -100,9 +100,11 @@ export async function POST(request: Request) {
     ]);
   }
 
-  const client = getClient(payload.module, payload.runtimeOverride);
+  const budgetGuardStep = await getLlmBudgetGuardStep(payload);
+  const effectivePayload: CopilotRunRequest = budgetGuardStep ? { ...payload, modelRoute: "mock" } : payload;
+  const client = getClient(effectivePayload.module, effectivePayload.runtimeOverride);
   const context = buildCopilotContext({
-    request: payload,
+    request: effectivePayload,
     actor: { rmId: account.rmId, name: account.name, role: account.role },
     customer,
     accounts,
@@ -112,8 +114,15 @@ export async function POST(request: Request) {
     lifecycleEvents,
     marketSnapshot
   });
-  const result = await client.run(payload, context);
+  const result = await client.run(effectivePayload, context);
   if (result.ok) {
+    if (budgetGuardStep) {
+      result.output = {
+        ...result.output,
+        fallbackMode: true,
+        steps: [...result.output.steps, budgetGuardStep]
+      };
+    }
     await pushRuntimeAgentRun(result.output);
     await writeOutputAudit(account, result.output.runId, result.output.customerId);
     if (result.output.moduleId === "draft_assist" && result.output.approvalRequired !== "auto") {
@@ -130,6 +139,40 @@ function isRuntimeOverride(value: unknown): value is CopilotRuntime {
 
 function isModelRoute(value: unknown): value is CopilotModelRoute {
   return value === "mock" || value === "siliconflow";
+}
+
+async function getLlmBudgetGuardStep(payload: CopilotRunRequest): Promise<AgentRun["steps"][number] | undefined> {
+  if (!requestsLiveLlm(payload)) {
+    return undefined;
+  }
+
+  const date = new Date().toISOString().slice(0, 10);
+  const count = await incrementRuntimeCounter(`beacon:llm:usage:${date}`);
+  const cap = getDailyLlmCap();
+  if (count <= cap) {
+    return undefined;
+  }
+
+  return {
+    name: "LLM budget guard",
+    source: "BeaconRuntimeStore",
+    output: {
+      note: "Daily live-LLM budget reached; demo continues on local runtime.",
+      date,
+      count,
+      cap,
+      fallbackRoute: "mock"
+    }
+  };
+}
+
+function requestsLiveLlm(payload: CopilotRunRequest) {
+  return payload.modelRoute === "siliconflow" || (payload.modelRoute === undefined && process.env.BEACON_LLM === "siliconflow");
+}
+
+function getDailyLlmCap() {
+  const value = Number(process.env.BEACON_DAILY_LLM_CAP ?? "200");
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 200;
 }
 
 async function writePermissionAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, payload: CopilotRunRequest) {

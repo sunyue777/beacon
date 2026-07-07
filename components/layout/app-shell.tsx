@@ -27,7 +27,7 @@ export function AppShell({ children, role }: { children: React.ReactNode; role: 
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      {pathname === "/login" ? (
+      {pathname === "/login" || pathname === "/access" ? (
         <>{children}</>
       ) : (
         <div

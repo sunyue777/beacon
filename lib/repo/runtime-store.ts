@@ -3,11 +3,17 @@ import type { AgentRun, AuditEvent, Transcript } from "./types";
 
 const MAX_EVENTS = 50;
 const TTL_SECONDS = 7 * 24 * 60 * 60;
+const COUNTER_TTL_SECONDS = 48 * 60 * 60;
 
 type RuntimeCollections = {
   events: AuditEvent[];
   agentRuns: AgentRun[];
   transcripts: Transcript[];
+};
+
+type RuntimeCounter = {
+  value: number;
+  expiresAt: number;
 };
 
 const runtimeKeys: Record<keyof RuntimeCollections, string> = {
@@ -19,6 +25,7 @@ const runtimeKeys: Record<keyof RuntimeCollections, string> = {
 const runtimeKey = "__dynaBeaconRuntimeStore";
 const runtimeGlobal = globalThis as typeof globalThis & {
   [runtimeKey]?: RuntimeCollections;
+  __dynaBeaconRuntimeCounters?: Record<string, RuntimeCounter>;
 };
 
 const memoryStore =
@@ -28,6 +35,8 @@ const memoryStore =
     agentRuns: [],
     transcripts: []
   });
+
+const memoryCounters = runtimeGlobal.__dynaBeaconRuntimeCounters ?? (runtimeGlobal.__dynaBeaconRuntimeCounters = {});
 
 let redisClient: Redis | null | undefined;
 
@@ -133,4 +142,26 @@ export async function getRuntimeTranscripts(): Promise<Transcript[]> {
 
 export async function clearRuntimeTranscripts() {
   await writeCollection("transcripts", []);
+}
+
+export async function incrementRuntimeCounter(key: string, ttlSeconds = COUNTER_TTL_SECONDS): Promise<number> {
+  const redis = getRedisClient();
+  if (redis) {
+    const count = await redis.incr(key);
+    await redis.expire(key, ttlSeconds);
+    return count;
+  }
+
+  const now = Date.now();
+  const existing = memoryCounters[key];
+  if (!existing || existing.expiresAt <= now) {
+    memoryCounters[key] = {
+      value: 1,
+      expiresAt: now + ttlSeconds * 1000
+    };
+    return 1;
+  }
+
+  existing.value += 1;
+  return existing.value;
 }

@@ -42,12 +42,16 @@ npm run validate-data
 ```env
 AI_MODE=demo
 BEACON_LLM=siliconflow
+BEACON_ACCESS_CODE=...
+BEACON_DAILY_LLM_CAP=200
 SILICONFLOW_API_KEY=...
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
 SILICONFLOW_MODEL=...
 
 COPILOT_BACKEND=mock
 COPILOT_POSTURE=conservative
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
 前端只显示：
@@ -70,6 +74,10 @@ COPILOT_POSTURE=conservative
    - `SILICONFLOW_API_KEY`
    - `SILICONFLOW_BASE_URL`
    - `SILICONFLOW_MODEL`
+   - `BEACON_ACCESS_CODE`
+   - `BEACON_DAILY_LLM_CAP`
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
    - Agent Studio 相关变量如未启用可留空。
 3. Build command：`npm run build`
 4. Output：Next.js 默认。
@@ -79,6 +87,12 @@ COPILOT_POSTURE=conservative
    - `/customers`
    - `/manager`
    - 一个 `/customers/[customerId]`
+
+访问码运营方式：
+
+- 每个客户 engagement 使用一个 `BEACON_ACCESS_CODE`。
+- 演示周期结束后更换 Vercel 环境变量并重新部署，旧访问 cookie 即失效。
+- Live LLM 日预算默认 `BEACON_DAILY_LLM_CAP=200`；超额后 demo 自动降级到 local runtime。
 
 ## 4. Secret hygiene
 
