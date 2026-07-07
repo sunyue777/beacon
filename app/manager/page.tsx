@@ -78,7 +78,7 @@ export default async function ManagerPage({ searchParams }: PageProps) {
           <h1 className="font-display text-[34px] font-medium leading-[1.1] tracking-tight">Team management</h1>
           <p className="mt-1.5 max-w-2xl text-[13px] leading-[1.5] text-muted-foreground">
             <strong className="text-foreground">{account.name}</strong> / Asia Wealth / {rms.length} RMs /{" "}
-            {customers.total} clients / {formatCurrency(totalAum, "USD")} AUM. View team performance, approve drafts,
+            {customers.total} clients / {formatCurrency(totalAum, "USD", { compact: true })} AUM. View team performance, approve drafts,
             and surface risk before it surfaces to compliance.
           </p>
         </div>
@@ -119,7 +119,7 @@ export default async function ManagerPage({ searchParams }: PageProps) {
 
       {/* KPI strip */}
       <section className="grid gap-3 md:grid-cols-5">
-        <Kpi label="Team AUM" value={formatCurrency(totalAum, "USD")} delta="aggregated book" deltaTone="up" />
+        <Kpi label="Team AUM" value={formatCurrency(totalAum, "USD", { compact: true })} delta="aggregated book" deltaTone="up" />
         <Kpi
           label="Clients reviewed"
           value={`${reviewedThisWeek} / ${reviewTarget}`}
@@ -373,7 +373,7 @@ function TeamPerformanceCard({
                 </Td>
                 <Td>
                   <span className="font-mono text-[12px] tabular">
-                    {item.customerCount} / {formatCurrency(aum, "USD")}
+                    {item.customerCount} / {formatCurrency(aum, "USD", { compact: true })}
                   </span>
                 </Td>
                 <Td>

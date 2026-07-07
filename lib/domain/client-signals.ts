@@ -1,4 +1,5 @@
 import type { CustomerProfile, Holding, LifecycleEvent, Product, Transaction } from "@/lib/repo/types";
+import { toUsd } from "@/lib/utils/currency";
 
 /**
  * Priority tier mapping. The numeric `priorityScore` in the data is a demo
@@ -63,7 +64,7 @@ export function getProductAllocation(holdings: Holding[], products: Product[]) {
   const totals = new Map<string, number>();
   for (const holding of holdings) {
     const category = productById.get(holding.productId)?.category ?? "Other";
-    totals.set(category, (totals.get(category) ?? 0) + holding.value);
+    totals.set(category, (totals.get(category) ?? 0) + toUsd(holding.value, holding.currency));
   }
   return [...totals.entries()]
     .map(([category, value]) => ({ category, value }))

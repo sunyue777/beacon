@@ -2,6 +2,7 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { Holding, Product } from "@/lib/repo/types";
+import { toUsd } from "@/lib/utils/currency";
 import { formatCurrency } from "@/lib/utils/format";
 
 // Chart palette derived from token system. Uses CSS custom properties so
@@ -29,7 +30,7 @@ export function PortfolioAllocationChart({
   const productById = new Map(products.map((product) => [product.productId, product]));
   const grouped = holdings.reduce<Record<string, number>>((acc, holding) => {
     const category = productById.get(holding.productId)?.category ?? "Other";
-    acc[category] = (acc[category] ?? 0) + holding.value;
+    acc[category] = (acc[category] ?? 0) + toUsd(holding.value, holding.currency);
     return acc;
   }, {});
   const total = Object.values(grouped).reduce((sum, value) => sum + value, 0) || 1;
@@ -49,7 +50,7 @@ export function PortfolioAllocationChart({
                 <Cell fill={colors[index % colors.length]} key={entry.name} />
               ))}
             </Pie>
-            <Tooltip formatter={(value, _name, item) => showValues ? formatCurrency(Number(value), "USD") : `${Number(item.payload?.pct ?? 0).toFixed(1)}%`} />
+            <Tooltip formatter={(value, _name, item) => showValues ? formatCurrency(Number(value), "USD", { compact: true }) : `${Number(item.payload?.pct ?? 0).toFixed(1)}%`} />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -61,7 +62,7 @@ export function PortfolioAllocationChart({
               <span className="text-sm">{entry.name}</span>
             </div>
             <span className="text-sm font-semibold">
-              {showValues ? formatCurrency(entry.value, "USD") : `${entry.pct.toFixed(1)}%`}
+              {showValues ? formatCurrency(entry.value, "USD", { compact: true }) : `${entry.pct.toFixed(1)}%`}
             </span>
           </div>
         ))}

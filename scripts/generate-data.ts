@@ -20,6 +20,7 @@ import type {
   Transcript,
   Transaction
 } from "../lib/repo/types";
+import { fromUsd, roundCurrency, toUsd } from "../lib/utils/currency";
 
 const projectRoot = process.cwd();
 const outDir = path.join(projectRoot, "data", "asia-wealth");
@@ -399,25 +400,25 @@ function buildAccounts(
   options: { forceNoHoldings?: boolean; singleInvestmentAccount?: boolean } = {}
 ): Account[] {
   const noHoldings = options.forceNoHoldings || (!options.singleInvestmentAccount && (index === 10 || (index > 10 && index % 97 === 0)));
-  const termDepositValue = noHoldings || index % 4 !== 0 ? 0 : roundMoney(customer.totalAum * (0.06 + (index % 7) * 0.012));
-  const cashBalance = noHoldings ? customer.totalAum : roundMoney(customer.totalAum * (0.06 + rng.next() * 0.17));
-  const invested = roundMoney(customer.totalAum - cashBalance - termDepositValue);
+  const termDepositUsd = noHoldings || index % 4 !== 0 ? 0 : roundMoney(customer.totalAum * (0.06 + (index % 7) * 0.012));
+  const cashUsd = noHoldings ? customer.totalAum : roundMoney(customer.totalAum * (0.06 + rng.next() * 0.17));
+  const investedUsd = roundMoney(customer.totalAum - cashUsd - termDepositUsd);
   const primaryCurrency = customer.fundingCurrency;
   const secondaryCurrency = investmentCurrencies[(investmentCurrencies.indexOf(primaryCurrency) + 1 + (index % 3)) % investmentCurrencies.length];
   let tertiaryCurrency = investmentCurrencies[(investmentCurrencies.indexOf(primaryCurrency) + 2 + (index % 2)) % investmentCurrencies.length];
   if (tertiaryCurrency === primaryCurrency || tertiaryCurrency === secondaryCurrency) {
     tertiaryCurrency = investmentCurrencies.find((currency) => currency !== primaryCurrency && currency !== secondaryCurrency) ?? tertiaryCurrency;
   }
-  const secondaryInvested = invested > 0 && !options.singleInvestmentAccount && index % 5 === 0 ? roundMoney(invested * (0.14 + (index % 5) * 0.025)) : 0;
-  const tertiaryInvested = invested > 0 && !options.singleInvestmentAccount && index % 31 === 0 ? roundMoney(invested * 0.08) : 0;
-  const primaryInvested = roundMoney(invested - secondaryInvested - tertiaryInvested);
+  const secondaryInvestedUsd = investedUsd > 0 && !options.singleInvestmentAccount && index % 5 === 0 ? roundMoney(investedUsd * (0.14 + (index % 5) * 0.025)) : 0;
+  const tertiaryInvestedUsd = investedUsd > 0 && !options.singleInvestmentAccount && index % 31 === 0 ? roundMoney(investedUsd * 0.08) : 0;
+  const primaryInvestedUsd = roundMoney(investedUsd - secondaryInvestedUsd - tertiaryInvestedUsd);
   const accounts: Account[] = [
     {
       accountId: `${customer.customerId}_cash`,
       customerId: customer.customerId,
       type: "Cash",
       currency: primaryCurrency,
-      cashBalance,
+      cashBalance: roundCurrency(fromUsd(cashUsd, primaryCurrency), primaryCurrency),
       marketValue: 0,
       status: customer.tags.includes("DormantCash") ? "Dormant" : "Active",
       openedAt: dateDaysAgo(1200 + rng.int(0, 900))
@@ -428,43 +429,43 @@ function buildAccounts(
       type: "Investment",
       currency: primaryCurrency,
       cashBalance: 0,
-      marketValue: primaryInvested,
+      marketValue: roundCurrency(fromUsd(primaryInvestedUsd, primaryCurrency), primaryCurrency),
       status: "Active",
       openedAt: dateDaysAgo(1000 + rng.int(0, 900))
     }
   ];
-  if (termDepositValue > 0) {
+  if (termDepositUsd > 0) {
     accounts.push({
       accountId: `${customer.customerId}_td_${primaryCurrency.toLowerCase()}`,
       customerId: customer.customerId,
       type: "TermDeposit",
       currency: primaryCurrency,
       cashBalance: 0,
-      marketValue: termDepositValue,
+      marketValue: roundCurrency(fromUsd(termDepositUsd, primaryCurrency), primaryCurrency),
       status: "Active",
       openedAt: dateDaysAgo(180 + rng.int(0, 1000))
     });
   }
-  if (secondaryInvested > 0) {
+  if (secondaryInvestedUsd > 0) {
     accounts.push({
       accountId: `${customer.customerId}_inv_${secondaryCurrency.toLowerCase()}`,
       customerId: customer.customerId,
       type: "Investment",
       currency: secondaryCurrency,
       cashBalance: 0,
-      marketValue: secondaryInvested,
+      marketValue: roundCurrency(fromUsd(secondaryInvestedUsd, secondaryCurrency), secondaryCurrency),
       status: "Active",
       openedAt: dateDaysAgo(700 + rng.int(0, 900))
     });
   }
-  if (tertiaryInvested > 0) {
+  if (tertiaryInvestedUsd > 0) {
     accounts.push({
       accountId: `${customer.customerId}_inv_${tertiaryCurrency.toLowerCase()}`,
       customerId: customer.customerId,
       type: "Investment",
       currency: tertiaryCurrency,
       cashBalance: 0,
-      marketValue: tertiaryInvested,
+      marketValue: roundCurrency(fromUsd(tertiaryInvestedUsd, tertiaryCurrency), tertiaryCurrency),
       status: "Active",
       openedAt: dateDaysAgo(620 + rng.int(0, 900))
     });
@@ -478,7 +479,7 @@ function buildHoldings(customer: CustomerProfile, accounts: Account[], products:
   }
 
   const investmentAccounts = accounts.filter((account) => account.type === "Investment" && account.marketValue > 0);
-  const invested = investmentAccounts.reduce((sum, account) => sum + account.marketValue, 0);
+  const invested = investmentAccounts.reduce((sum, account) => sum + toUsd(account.marketValue, account.currency), 0);
   const holdingCount = targetHoldingCount ?? (index < 10 || (index >= 50 && index < 60) ? 32 + (index % 6) : index % 89 === 0 ? 1 : 2 + (index % 7));
   const categoryFilter =
     index === 11 || index % 83 === 0 ? "ETF" :
@@ -497,7 +498,7 @@ function buildHoldings(customer: CustomerProfile, accounts: Account[], products:
             1,
             Math.min(
               remainingCount - minimumForRemainingAccounts,
-              Math.round((holdingCount * investmentAccount.marketValue) / invested)
+              Math.round((holdingCount * toUsd(investmentAccount.marketValue, investmentAccount.currency)) / invested)
             )
           );
     remainingCount -= accountCount;
@@ -508,8 +509,12 @@ function buildHoldings(customer: CustomerProfile, accounts: Account[], products:
 
     return weights.map((weight, holdingIndex) => {
       const isLast = holdingIndex === weights.length - 1;
-      const allocatedBefore = weights.slice(0, holdingIndex).reduce((sum, item) => roundMoney(sum + (investmentAccount.marketValue * item) / totalWeight), 0);
-      const value = isLast ? roundMoney(investmentAccount.marketValue - allocatedBefore) : roundMoney((investmentAccount.marketValue * weight) / totalWeight);
+      const allocatedBefore = weights
+        .slice(0, holdingIndex)
+        .reduce((sum, item) => roundCurrency(sum + (investmentAccount.marketValue * item) / totalWeight, investmentAccount.currency), 0);
+      const value = isLast
+        ? roundCurrency(investmentAccount.marketValue - allocatedBefore, investmentAccount.currency)
+        : roundCurrency((investmentAccount.marketValue * weight) / totalWeight, investmentAccount.currency);
       const product = accountPool[(index * 13 + globalHoldingIndex * 7) % accountPool.length];
       globalHoldingIndex += 1;
       return {
@@ -521,7 +526,7 @@ function buildHoldings(customer: CustomerProfile, accounts: Account[], products:
         currency: investmentAccount.currency,
         units: roundMoney(value / (50 + (holdingIndex % 9) * 7)),
         avgCostPrice: 50 + (holdingIndex % 9) * 7,
-        pctOfAum: roundMoney((value / customer.totalAum) * 100),
+        pctOfAum: roundMoney((toUsd(value, investmentAccount.currency) / customer.totalAum) * 100),
         riskStatus: isRiskMismatch(customer.riskProfile, product.riskLevel) ? "mismatch" : "aligned",
         openedAt: dateDaysAgo(60 + rng.int(0, 900)),
         updatedAt: dateDaysAgo(rng.int(0, 45))

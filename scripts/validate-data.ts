@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { DataBundle } from "../lib/repo/types";
+import { toUsd } from "../lib/utils/currency";
 
 const projectRoot = process.cwd();
 const dataPath = path.join(projectRoot, "data", "asia-wealth", "bundle.json");
@@ -126,14 +127,16 @@ function validateOwnershipModel(data: DataBundle) {
 
 function validateAum(data: DataBundle) {
   for (const customer of data.customers) {
-    const cash = data.accounts.filter((account) => account.customerId === customer.customerId).reduce((sum, account) => sum + account.cashBalance, 0);
-    const holdingValue = data.holdings.filter((holding) => holding.customerId === customer.customerId).reduce((sum, holding) => sum + holding.value, 0);
+    assert(customer.currency === "USD", `Customer ${customer.customerId} totalAum should be USD, found ${customer.currency}`);
+    const holdingValue = data.holdings
+      .filter((holding) => holding.customerId === customer.customerId)
+      .reduce((sum, holding) => sum + toUsd(holding.value, holding.currency), 0);
     const accountValue = data.accounts
       .filter((account) => account.customerId === customer.customerId && account.type !== "Investment")
-      .reduce((sum, account) => sum + account.cashBalance + account.marketValue, 0);
+      .reduce((sum, account) => sum + toUsd(account.cashBalance + account.marketValue, account.currency), 0);
     const explained = accountValue + holdingValue;
     const tolerance = Math.max(customer.totalAum * 0.01, 1);
-    assert(Math.abs(customer.totalAum - explained) <= tolerance, `Customer ${customer.customerId} AUM mismatch: ${customer.totalAum} vs ${explained}`);
+    assert(Math.abs(customer.totalAum - explained) <= tolerance, `Customer ${customer.customerId} USD AUM mismatch: ${customer.totalAum} vs ${explained}`);
   }
 }
 

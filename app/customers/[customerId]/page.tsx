@@ -28,6 +28,7 @@ import { getRiskAlignment, getRiskComplianceSummary, type ComplianceState } from
 import { RiskAlignmentCard } from "@/components/risk/risk-alignment-card";
 import { getCurrentAccount } from "@/lib/auth/server-session";
 import { getRepo } from "@/lib/repo";
+import { toUsd } from "@/lib/utils/currency";
 import { formatCurrency } from "@/lib/utils/format";
 import type { Account, AgentRun, AuditEvent, CustomerProfile, Holding, LifecycleEvent, Product, RMRole, Transaction } from "@/lib/repo/types";
 
@@ -593,12 +594,12 @@ function KpiStrip({
     <section className="grid gap-3 md:grid-cols-4">
       <Kpi
         label="AUM"
-        value={formatCurrency(customer.totalAum, customer.currency)}
+        value={formatCurrency(customer.totalAum, customer.currency, { compact: true })}
         delta={
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <span>
               {yoy >= 0 ? "up" : "down"} {Math.abs(yoy).toFixed(1)}% YoY / 30d flow{" "}
-              {flow >= 0 ? "+" : "-"}{formatCurrency(Math.abs(flow), customer.currency)}
+              {flow >= 0 ? "+" : "-"}{formatCurrency(Math.abs(flow), customer.currency, { compact: true })}
             </span>
             <SyntheticPreviewChip />
           </span>
@@ -958,7 +959,7 @@ function AccountsTab({ accounts }: { accounts: Account[] }) {
 }
 
 function HoldingsTab({ customerId, holdings, productById }: { customerId: string; holdings: Holding[]; productById: Map<string, Product> }) {
-  const total = holdings.reduce((sum, holding) => sum + holding.value, 0) || 1;
+  const total = holdings.reduce((sum, holding) => sum + toUsd(holding.value, holding.currency), 0) || 1;
   return (
     <Card className="h-full overflow-hidden">
       <CardHeader
@@ -979,7 +980,7 @@ function HoldingsTab({ customerId, holdings, productById }: { customerId: string
       <CardContent className="space-y-2 pt-4">
         {holdings.map((holding) => {
           const product = productById.get(holding.productId);
-          const concentration = (holding.value / total) * 100;
+          const concentration = (toUsd(holding.value, holding.currency) / total) * 100;
           return (
             <div className="grid gap-3 rounded-[12px] border border-border bg-background/70 p-3 transition hover:border-primary/28 hover:bg-primary-soft/28 xl:grid-cols-[1fr_0.78fr_0.48fr_0.55fr_0.36fr]" key={holding.holdingId}>
               <div className="min-w-0">

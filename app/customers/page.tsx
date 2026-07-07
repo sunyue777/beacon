@@ -336,7 +336,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                   <PriorityReasonText reason={priorityReason} />
                 </div>
                 <div className="mt-1.5 font-mono text-[11px] text-muted-foreground tabular">
-                  {formatCurrency(customer.totalAum, customer.currency)} · score {customer.priorityScore}
+                  {formatCurrency(customer.totalAum, customer.currency, { compact: true })} · score {customer.priorityScore}
                   {rm ? ` · ${rm.name}` : ""}
                 </div>
               </Link>

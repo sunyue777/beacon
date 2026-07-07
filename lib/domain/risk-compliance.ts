@@ -1,4 +1,5 @@
 import type { CustomerProfile, Holding, Product, RiskProfile } from "@/lib/repo/types";
+import { toUsd } from "@/lib/utils/currency";
 import { daysUntil } from "./client-signals";
 
 /**
@@ -91,16 +92,16 @@ export function getConcentrationRisk(holdings: Holding[], products: Product[]): 
     return { state: "NotChecked", detail: "No holdings on file." };
   }
   const productById = new Map(products.map((p) => [p.productId, p]));
-  const total = holdings.reduce((sum, h) => sum + h.value, 0) || 1;
+  const total = holdings.reduce((sum, h) => sum + toUsd(h.value, h.currency), 0) || 1;
 
   const positionPcts = holdings
-    .map((h) => ({ name: productById.get(h.productId)?.name ?? h.productId, pct: (h.value / total) * 100 }))
+    .map((h) => ({ name: productById.get(h.productId)?.name ?? h.productId, pct: (toUsd(h.value, h.currency) / total) * 100 }))
     .sort((a, b) => b.pct - a.pct);
 
   const categoryTotals = new Map<string, number>();
   for (const h of holdings) {
     const category = productById.get(h.productId)?.category ?? "Other";
-    categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + h.value);
+    categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + toUsd(h.value, h.currency));
   }
   const sortedCategories = [...categoryTotals.entries()]
     .map(([category, value]) => ({ category, pct: (value / total) * 100 }))
@@ -141,10 +142,10 @@ export function getCurrencyExposure(
       detail: "No holdings on file."
     };
   }
-  const total = holdings.reduce((sum, h) => sum + h.value, 0) || 1;
+  const total = holdings.reduce((sum, h) => sum + toUsd(h.value, h.currency), 0) || 1;
   const ccyTotals = new Map<string, number>();
   for (const h of holdings) {
-    ccyTotals.set(h.currency, (ccyTotals.get(h.currency) ?? 0) + h.value);
+    ccyTotals.set(h.currency, (ccyTotals.get(h.currency) ?? 0) + toUsd(h.value, h.currency));
   }
   const breakdown = [...ccyTotals.entries()]
     .map(([currency, value]) => ({ currency, pct: Math.round((value / total) * 100) }))
@@ -174,13 +175,13 @@ export function getLiquidityCompliance(holdings: Holding[], products: Product[])
     return { state: "NotChecked", illiquidPct: 0, detail: "No holdings on file." };
   }
   const productById = new Map(products.map((p) => [p.productId, p]));
-  const total = holdings.reduce((sum, h) => sum + h.value, 0) || 1;
+  const total = holdings.reduce((sum, h) => sum + toUsd(h.value, h.currency), 0) || 1;
   const illiquidValue = holdings
     .filter((h) => {
       const category = productById.get(h.productId)?.category;
       return category && ILLIQUID_CATEGORIES.has(category);
     })
-    .reduce((sum, h) => sum + h.value, 0);
+    .reduce((sum, h) => sum + toUsd(h.value, h.currency), 0);
   const illiquidPct = Math.round((illiquidValue / total) * 100);
 
   let state: ComplianceState = "Pass";
@@ -336,7 +337,7 @@ export function getRiskAlignment(
   products: Product[]
 ): RiskAlignment {
   const productById = new Map(products.map((p) => [p.productId, p]));
-  const total = holdings.reduce((sum, h) => sum + h.value, 0) || 1;
+  const total = holdings.reduce((sum, h) => sum + toUsd(h.value, h.currency), 0) || 1;
   const profileScore = RISK_TO_SCORE[customer.riskProfile];
 
   // ---------- Actual portfolio score (value-weighted) ----------
@@ -344,7 +345,7 @@ export function getRiskAlignment(
   for (const h of holdings) {
     const product = productById.get(h.productId);
     const score = product ? RISK_TO_SCORE[product.riskLevel] : profileScore;
-    weightedSum += score * h.value;
+    weightedSum += score * toUsd(h.value, h.currency);
   }
   const actualScoreRaw = holdings.length > 0 ? weightedSum / total : profileScore;
   const actualScore = Math.round(actualScoreRaw * 10) / 10;
@@ -358,7 +359,7 @@ export function getRiskAlignment(
     const cat = productById.get(h.productId)?.category;
     const bucket = bucketOfCategory(cat);
     if (bucket !== "Unknown") {
-      actualByBucket.set(bucket, (actualByBucket.get(bucket) ?? 0) + h.value);
+      actualByBucket.set(bucket, (actualByBucket.get(bucket) ?? 0) + toUsd(h.value, h.currency));
     }
   }
   const allocation: AllocationRow[] = buckets.map((bucket) => {
@@ -379,9 +380,10 @@ export function getRiskAlignment(
   let illiquidValue = 0;
   for (const h of holdings) {
     const cat = productById.get(h.productId)?.category;
-    if (cat && LIQUID_CATEGORIES.has(cat)) liquidValue += h.value;
-    else if (cat && SEMI_LIQUID_CATEGORIES.has(cat)) semiValue += h.value;
-    else if (cat && ILLIQUID_BUCKET_CATEGORIES.has(cat)) illiquidValue += h.value;
+    const value = toUsd(h.value, h.currency);
+    if (cat && LIQUID_CATEGORIES.has(cat)) liquidValue += value;
+    else if (cat && SEMI_LIQUID_CATEGORIES.has(cat)) semiValue += value;
+    else if (cat && ILLIQUID_BUCKET_CATEGORIES.has(cat)) illiquidValue += value;
   }
   const liquidPct = Math.round((liquidValue / total) * 100);
   const semiPct = Math.round((semiValue / total) * 100);
