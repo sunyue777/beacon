@@ -1,7 +1,7 @@
 export type RMRole = "Junior" | "MidLevel" | "Manager";
 export type CustomerSegment = "Mass" | "Affluent" | "HNW" | "UHNW";
 export type RiskProfile = "Conservative" | "ModConservative" | "Moderate" | "ModAggressive" | "Aggressive";
-export type PriorityTag = "DormantCash" | "Maturity" | "RiskMismatch" | "MarketMove" | "Lifecycle" | "HighValue" | "ReviewDue";
+export type PriorityTag = "DormantCash" | "Maturity" | "RiskMismatch" | "MarketMove" | "Lifecycle" | "HighValue" | "ReviewDue" | "ServiceWindow";
 
 export interface RMUser {
   rmId: string;

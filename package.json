@@ -11,6 +11,7 @@
     "generate-data": "node scripts/generate-data.ts",
     "validate-data": "node scripts/validate-data.ts",
     "check-data": "npm run generate-data && npm run validate-data",
+    "refresh-data": "npm run generate-data && npm run validate-data",
     "test": "npm run test:copilot && npm run test:voice",
     "test:copilot": "tsx --test tests/copilot/*.test.ts",
     "test:voice": "tsx --test tests/voice/*.test.ts"

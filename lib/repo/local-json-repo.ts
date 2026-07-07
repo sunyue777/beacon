@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { daysSince } from "@/lib/domain/client-signals";
 import type { Repo } from "./repo";
 import { getRuntimeAgentRuns, getRuntimeAudit } from "./runtime-events";
 import { getRuntimeTranscripts } from "./runtime-events";
@@ -34,6 +35,7 @@ export class LocalJsonRepo implements Repo {
 
   async listCustomers(options: ListCustomersOptions = {}): Promise<PagedResult<CustomerProfile>> {
     const data = await this.data();
+    const referenceDate = getLatestMarketDate(data);
     const visibleIds = this.visibleCustomerIds(data.rms, options.role, options.rmId);
     const query = options.query?.trim().toLowerCase();
     let items = data.customers.filter((customer) => !visibleIds || visibleIds.has(customer.customerId));
@@ -48,9 +50,13 @@ export class LocalJsonRepo implements Repo {
         if (options.priority === "reviewDue") return customer.tags.includes("ReviewDue");
         if (options.priority === "rebalance") return customer.tags.includes("RiskMismatch") || data.holdings.some((holding) => holding.customerId === customer.customerId && holding.riskStatus === "mismatch");
         if (options.priority === "dormant") return customer.hasDormantClientSignal;
-        if (options.priority === "noRecentContact") return !customer.lastContactedAt || daysSince(customer.lastContactedAt) >= 120;
+        if (options.priority === "noRecentContact") {
+          const since = daysSince(customer.lastContactedAt, referenceDate);
+          return since === undefined || since >= 120;
+        }
         if (options.priority === "maturitySoon") return customer.tags.includes("Maturity") || data.lifecycleEvents.some((event) => event.customerId === customer.customerId && event.type === "Maturity");
-        return Boolean(customer.lastContactedAt && daysSince(customer.lastContactedAt) <= 21);
+        const since = daysSince(customer.lastContactedAt, referenceDate);
+        return since !== undefined && since <= 21;
       });
     }
 
@@ -198,6 +204,6 @@ export class LocalJsonRepo implements Repo {
   }
 }
 
-function daysSince(date: string) {
-  return Math.round((Date.parse("2026-05-06") - Date.parse(date)) / 86_400_000);
+function getLatestMarketDate(data: DataBundle) {
+  return [...data.marketSnapshots].sort((a, b) => b.date.localeCompare(a.date))[0]?.date;
 }

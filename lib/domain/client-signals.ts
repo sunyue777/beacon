@@ -39,6 +39,8 @@ export function getPriorityReason(customer: CustomerProfile) {
       return "High value relationship - proactive touch";
     case "ReviewDue":
       return "Annual review due";
+    case "ServiceWindow":
+      return "Service window - prepare relationship touch";
     default:
       return `${customer.serviceTier} client - ${customer.riskProfile}`;
   }
@@ -74,25 +76,28 @@ export function isHeroCustomer(transactions: Transaction[]) {
 
 /* ------------------------- Time / freshness helpers ------------------------- */
 
-const TODAY = new Date("2026-05-06T00:00:00.000Z");
-
 function daysBetween(later: Date, earlier: Date) {
   return Math.floor((later.getTime() - earlier.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export function daysSince(iso: string | undefined): number | undefined {
-  if (!iso) return undefined;
-  return daysBetween(TODAY, new Date(iso));
+function referenceDate(asOf?: string) {
+  const date = asOf?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+  return new Date(`${date}T00:00:00.000Z`);
 }
 
-export function daysUntil(iso: string | undefined): number | undefined {
+export function daysSince(iso: string | undefined, asOf?: string): number | undefined {
   if (!iso) return undefined;
-  return daysBetween(new Date(iso), TODAY);
+  return daysBetween(referenceDate(asOf), new Date(iso));
+}
+
+export function daysUntil(iso: string | undefined, asOf?: string): number | undefined {
+  if (!iso) return undefined;
+  return daysBetween(new Date(iso), referenceDate(asOf));
 }
 
 /** Human-readable "Last contact 87d ago" / "today" / "yesterday". */
-export function formatRelativeDays(iso?: string): string {
-  const days = daysSince(iso);
+export function formatRelativeDays(iso?: string, asOf?: string): string {
+  const days = daysSince(iso, asOf);
   if (days === undefined) return "Never contacted";
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
@@ -102,8 +107,8 @@ export function formatRelativeDays(iso?: string): string {
 }
 
 /** Color tone for last-contact freshness badge. */
-export function getContactFreshnessTone(iso?: string): "danger" | "warning" | "muted" | "success" {
-  const days = daysSince(iso);
+export function getContactFreshnessTone(iso?: string, asOf?: string): "danger" | "warning" | "muted" | "success" {
+  const days = daysSince(iso, asOf);
   if (days === undefined) return "danger";
   if (days >= 120) return "danger";
   if (days >= 60) return "warning";
@@ -118,8 +123,8 @@ export type ReviewStatus = {
 };
 
 /** Categorize a nextReviewDate so the UI can render it consistently. */
-export function getReviewStatus(iso: string): ReviewStatus {
-  const until = daysUntil(iso) ?? 0;
+export function getReviewStatus(iso: string, asOf?: string): ReviewStatus {
+  const until = daysUntil(iso, asOf) ?? 0;
   if (until < 0) {
     return { kind: "overdue", days: -until, label: `Review overdue ${-until}d` };
   }

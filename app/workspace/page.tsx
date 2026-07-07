@@ -76,6 +76,7 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
 
   const approvalQueue = getApprovalQueueForAccount(auditEvents, account);
   const returnedDrafts = getReturnedDraftsForAccount(auditEvents, runs, account);
+  const briefRunDate = market?.date ?? new Date().toISOString().slice(0, 10);
   const visibleDraftEvents = auditEvents.filter((event) =>
     event.type.startsWith("draft.") &&
     (account.role === "Manager" ? event.actorId !== account.rmId : event.actorId === account.rmId)
@@ -90,6 +91,7 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
         <ManagerDailyBrief
           account={{ name: account.name, total: ownedQueue.total, teamSize: rms.length, allTotal: allCustomers.total }}
           approvalCount={approvalQueue.length}
+          briefRunId={buildBriefRunId("mgr", briefRunDate)}
           hygiene={hygiene}
           coverage={coverage}
         />
@@ -140,6 +142,7 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
 
       <FusedWorkspaceHero
         account={account}
+        briefRunId={buildBriefRunId("rm", briefRunDate)}
         headline={briefHeadline}
         ownedTotal={ownedQueue.total}
         variant="rm"
@@ -229,11 +232,13 @@ function ReturnedDraftNotice({
  * left border. */
 function FusedWorkspaceHero({
   account,
+  briefRunId,
   headline,
   ownedTotal,
   variant
 }: {
   account: { name: string; role: RMRole; accent: string; title: string; rmId: string };
+  briefRunId: string;
   headline: BriefHeadlineModel;
   ownedTotal: number;
   variant: "rm";
@@ -268,7 +273,7 @@ function FusedWorkspaceHero({
               AI Daily Brief
             </span>
             <span className="font-mono text-[11px] text-ai-foreground/70">
-              prepared 08:30 SGT / scope / {slug(account.name)} / direct book {ownedTotal} / run #brief-rm-20260507
+              prepared 08:30 SGT / scope / {slug(account.name)} / direct book {ownedTotal} / run #{briefRunId}
             </span>
           </div>
           <div className="mt-3 w-full">
@@ -284,15 +289,17 @@ function FusedWorkspaceHero({
 
 function RMDailyBrief({
   account,
+  briefRunId,
   headline,
   bullets
 }: {
   account: { name: string; total: number };
+  briefRunId: string;
   headline: BriefHeadlineModel;
   bullets: CustomerProfile[];
 }) {
   return (
-    <AIBriefShell tag="AI Daily Brief" meta={`scope | ${slug(account.name)} | direct book: ${account.total} clients | run #brief-rm-20260507`}>
+    <AIBriefShell tag="AI Daily Brief" meta={`scope | ${slug(account.name)} | direct book: ${account.total} clients | run #${briefRunId}`}>
       <div className="grid gap-9 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <BriefHeadline {...headline} />
@@ -374,11 +381,13 @@ function countDailyPrepared(customers: CustomerProfile[], role: RMRole) {
 function ManagerDailyBrief({
   account,
   approvalCount,
+  briefRunId,
   hygiene,
   coverage
 }: {
   account: { name: string; total: number; teamSize: number; allTotal: number };
   approvalCount: number;
+  briefRunId: string;
   hygiene: ReturnType<typeof getComplianceHygiene>;
   coverage: ReturnType<typeof getRmCoverage>;
 }) {
@@ -396,7 +405,7 @@ function ManagerDailyBrief({
   return (
     <AIBriefShell
       tag="Team Daily Brief"
-      meta={`scope | ${slug(account.name)} | direct book: ${account.total} clients | visible team: ${account.allTotal} clients | ${account.teamSize} RMs | run #brief-mgr-20260507`}
+      meta={`scope | ${slug(account.name)} | direct book: ${account.total} clients | visible team: ${account.allTotal} clients | ${account.teamSize} RMs | run #${briefRunId}`}
     >
       <div className="max-w-3xl">
         <BriefHeadline {...headline} />
@@ -550,6 +559,10 @@ function BriefBulletRow({
 
 function slug(name: string) {
   return name.toLowerCase().replace(/\s+/g, ".");
+}
+
+function buildBriefRunId(scope: "rm" | "mgr", date: string) {
+  return `brief-${scope}-${date.replaceAll("-", "")}`;
 }
 
 /* ============================ Role Identity Strip ============================ */
@@ -1463,4 +1476,3 @@ function MarketTone({ market }: { market: Awaited<ReturnType<ReturnType<typeof g
     </div>
   );
 }
-

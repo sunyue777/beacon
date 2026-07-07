@@ -21,11 +21,11 @@ import type {
   Transaction
 } from "../lib/repo/types";
 
-const projectRoot = process.cwd().endsWith("Dyna-Beacon") ? process.cwd() : path.join(process.cwd(), "Dyna-Beacon");
+const projectRoot = process.cwd();
 const outDir = path.join(projectRoot, "data", "asia-wealth");
 const customerCount = Number(process.env.SEED_COUNT ?? "595");
 const personaId = "asia-wealth";
-const now = new Date("2026-05-06T09:00:00.000Z");
+const now = resolveNow();
 
 class Rng {
   private seed: number;
@@ -270,13 +270,13 @@ function buildCustomer(index: number, rms: RMUser[], tier: "Junior" | "MidLevel"
   const eventBoost = recentHighEvent ? 12 : tags.includes("MarketMove") ? 6 : 0;
   const reviewOverdue = nextReviewDate < now.toISOString().slice(0, 10);
   const reviewBoost = reviewOverdue ? 8 : 0;
-  const rawPriorityScore = 38 + tags.length * 11 + eventBoost + reviewBoost + (index % 13);
+  const rawPriorityScore = 40 + tags.length * 11 + eventBoost + reviewBoost + (index % 13);
   const zeroAumPenalty = totalAum === 0 ? 40 : 0;
   const priorityScore = Math.min(98, Math.max(38, rawPriorityScore - zeroAumPenalty));
 
   // Suitability questionnaire — typically valid for 12 months. Spread expiry
   // across customers so demo always shows some Valid / Expiring / Expired.
-  const suitabilityAgeDays = 60 + (index * 17) % 420;
+  const suitabilityAgeDays = 45 + (index * 17) % 340;
   const suitabilityCompletedAt = dateDaysAgo(suitabilityAgeDays);
   const suitabilityExpiresAt = dateDaysAgo(suitabilityAgeDays - 365);
   const daysToExpiry = -(suitabilityAgeDays - 365);
@@ -320,7 +320,7 @@ function buildCustomer(index: number, rms: RMUser[], tier: "Junior" | "MidLevel"
     currency: "USD",
     tags,
     priorityScore,
-    lastContactedAt: buildLastContactedAt(index),
+    lastContactedAt: buildLastContactedAt(index, tierRank),
     nextReviewDate,
     hasDormantClientSignal: totalAum === 0 || index % 15 === 0 || index % 137 === 0,
     serviceTier,
@@ -758,14 +758,14 @@ function buildModuleConfigs(): ModuleConfig[] {
 
 function buildTags(index: number, serviceTier: CustomerProfile["serviceTier"]): PriorityTag[] {
   const tags: PriorityTag[] = [];
-  if (index % 5 === 0) tags.push("ReviewDue");
+  if (index % 13 === 0) tags.push("ReviewDue");
   if (index % 7 === 0) tags.push("Lifecycle");
   if (index % 11 === 0) tags.push("RiskMismatch");
   if (index % 13 === 0 || index % 137 === 0) tags.push("DormantCash");
   if (index % 17 === 0) tags.push("Maturity");
   if (serviceTier === "VIP" || serviceTier === "Private") tags.push("HighValue");
   if (index % 19 === 0) tags.push("MarketMove");
-  return tags.length > 0 ? tags : ["ReviewDue"];
+  return tags.length > 0 ? tags : ["ServiceWindow"];
 }
 
 function buildAum(index: number) {
@@ -802,15 +802,15 @@ function buildSessionEvents(rms: RMUser[]): AuditEvent[] {
   return events;
 }
 
-function buildLastContactedAt(index: number) {
-  if (index % 6 === 0) return dateDaysAgo(125 + (index % 70));
-  if (index % 4 === 0) return dateDaysAgo(3 + (index % 18));
-  return dateDaysAgo(24 + (index % 82));
+function buildLastContactedAt(index: number, tierRank: number) {
+  if (tierRank % 5 === 0) return dateDaysAgo(3 + (tierRank % 18));
+  if (tierRank % 6 === 0) return dateDaysAgo(125 + (tierRank % 55));
+  return dateDaysAgo(24 + ((index + tierRank * 3) % 82));
 }
 
 function buildNextReviewDate(index: number) {
   const date = new Date(now);
-  date.setUTCDate(date.getUTCDate() + ((index * 7) % 180) - 30);
+  date.setUTCDate(date.getUTCDate() + ((index * 7) % 180) - 10);
   return date.toISOString().slice(0, 10);
 }
 
@@ -842,6 +842,35 @@ async function writeBundle(bundle: DataBundle) {
   await mkdir(outDir, { recursive: true });
   await writeFile(path.join(outDir, "bundle.json"), `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
   console.log(`Generated ${bundle.customers.length} customers, ${bundle.products.length} products, ${bundle.transactions.length} transactions.`);
+}
+
+function resolveNow() {
+  const explicit = readNowArg();
+  const date = explicit ?? localDateString(new Date());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T09:00:00.000Z`))) {
+    throw new Error(`Invalid --now date "${date}". Use YYYY-MM-DD, for example --now=2026-07-07.`);
+  }
+  return new Date(`${date}T09:00:00.000Z`);
+}
+
+function readNowArg() {
+  for (let index = 2; index < process.argv.length; index += 1) {
+    const arg = process.argv[index];
+    if (arg.startsWith("--now=")) {
+      return arg.slice("--now=".length);
+    }
+    if (arg === "--now") {
+      return process.argv[index + 1];
+    }
+  }
+  return process.env.BEACON_DATA_NOW;
+}
+
+function localDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 main().catch((error) => {

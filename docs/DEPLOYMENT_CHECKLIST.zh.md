@@ -2,12 +2,14 @@
 
 ## 1. 本地 rehearsal
 
-```powershell
-cd D:\Nora\01_Hive\Dyna_WM\Dyna-Beacon
-npm run generate-data
-npm run validate-data
+macOS Terminal / zsh：
+
+```bash
+cd /Users/nora/Workspace/01_Hive/Beacon
+npm install
+npm run refresh-data
 npx tsc --noEmit
-npm run test:copilot
+npm test
 npm run build
 npm run dev
 ```
@@ -19,6 +21,19 @@ http://localhost:3000
 ```
 
 如果 3000 被占用，Next 会自动切到 3001。
+
+每个演示周期前先刷新一次数据并部署：
+
+```bash
+npm run refresh-data
+```
+
+如需固定彩排日期：
+
+```bash
+npm run generate-data -- --now=2026-07-07
+npm run validate-data
+```
 
 ## 2. 推荐 demo env
 
@@ -78,7 +93,7 @@ COPILOT_POSTURE=conservative
 
 快速检查：
 
-```powershell
+```bash
 rg -n "sk-|api_key|SILICONFLOW_API_KEY|AGENT_STUDIO_API_KEY|Bearer " .
 ```
 

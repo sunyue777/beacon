@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { DataBundle } from "../lib/repo/types";
 
-const projectRoot = process.cwd().endsWith("Dyna-Beacon") ? process.cwd() : path.join(process.cwd(), "Dyna-Beacon");
+const projectRoot = process.cwd();
 const dataPath = path.join(projectRoot, "data", "asia-wealth", "bundle.json");
 const errors: string[] = [];
 
@@ -20,8 +20,10 @@ async function main() {
   validateHoldingAccountValues(data);
   validatePriorityBookHoldings(data);
   validateAumDiversity(data);
-  validateContactSignals(data);
-  validateDemoDistributions(data);
+  const demoDate = getDemoDate(data);
+  validateContactSignals(data, demoDate);
+  validateDemoDistributions(data, demoDate);
+  validateFreshnessDistributions(data, demoDate);
 
   if (errors.length > 0) {
     console.error(`Data validation failed with ${errors.length} error(s):`);
@@ -179,18 +181,18 @@ function validateAumDiversity(data: DataBundle) {
   assert(zeroOrDormant >= 35 && zeroOrDormant <= 55, `Expected about 40 zero-AUM/dormant customers, found ${zeroOrDormant}`);
 }
 
-function validateContactSignals(data: DataBundle) {
+function validateContactSignals(data: DataBundle, demoDate: string) {
   if (data.customers.length < 100) {
     return;
   }
   const noRecentContact = data.customers.filter((customer) => {
     if (!customer.lastContactedAt) return true;
-    return daysBetween(customer.lastContactedAt, "2026-05-06") >= 120;
+    return daysBetween(customer.lastContactedAt, demoDate) >= 120;
   }).length;
-  assert(noRecentContact >= 90 && noRecentContact <= 110, `Expected about 100 no-recent-contact customers, found ${noRecentContact}`);
+  assert(noRecentContact >= 65 && noRecentContact <= 100, `Expected controlled no-recent-contact range, found ${noRecentContact}`);
 }
 
-function validateDemoDistributions(data: DataBundle) {
+function validateDemoDistributions(data: DataBundle, demoDate: string) {
   if (data.customers.length !== 595) {
     return;
   }
@@ -207,20 +209,20 @@ function validateDemoDistributions(data: DataBundle) {
   assert((priorityTiers.Steady ?? 0) >= 95 && (priorityTiers.Steady ?? 0) <= 170, `Expected realistic Steady range, found ${priorityTiers.Steady ?? 0}`);
 
   const suitability = countBy(data.customers, (customer) => {
-    const days = daysBetween("2026-05-06", customer.suitabilityExpiresAt);
+    const days = daysBetween(demoDate, customer.suitabilityExpiresAt);
     if (days < 0) return "Block";
     if (days <= 30) return "Watch";
     return "Pass";
   });
-  assert((suitability.Pass ?? 0) >= 350 && (suitability.Pass ?? 0) <= 430, `Expected realistic suitability Pass range, found ${suitability.Pass ?? 0}`);
-  assert((suitability.Watch ?? 0) >= 30 && (suitability.Watch ?? 0) <= 70, `Expected realistic suitability Watch range, found ${suitability.Watch ?? 0}`);
-  assert((suitability.Block ?? 0) >= 130 && (suitability.Block ?? 0) <= 190, `Expected realistic suitability Block range, found ${suitability.Block ?? 0}`);
+  assert((suitability.Pass ?? 0) >= 500 && (suitability.Pass ?? 0) <= 560, `Expected controlled suitability Pass range, found ${suitability.Pass ?? 0}`);
+  assert((suitability.Watch ?? 0) >= 20 && (suitability.Watch ?? 0) <= 50, `Expected controlled suitability Watch range, found ${suitability.Watch ?? 0}`);
+  assert((suitability.Block ?? 0) >= 20 && (suitability.Block ?? 0) <= 50, `Expected controlled suitability Block range, found ${suitability.Block ?? 0}`);
 
   const knowledge = countBy(data.customers, (customer) => customer.knowledgeAssessmentStatus);
-  assert((knowledge.Valid ?? 0) >= 340, `Expected at least 340 K&E Valid customers, found ${knowledge.Valid ?? 0}`);
-  assert((knowledge.Expiring ?? 0) >= 30 && (knowledge.Expiring ?? 0) <= 70, `Expected realistic K&E Expiring range, found ${knowledge.Expiring ?? 0}`);
+  assert((knowledge.Valid ?? 0) >= 490, `Expected at least 490 K&E Valid customers, found ${knowledge.Valid ?? 0}`);
+  assert((knowledge.Expiring ?? 0) >= 20 && (knowledge.Expiring ?? 0) <= 50, `Expected controlled K&E Expiring range, found ${knowledge.Expiring ?? 0}`);
   assert((knowledge.Pending ?? 0) >= 10 && (knowledge.Pending ?? 0) <= 35, `Expected realistic K&E Pending range, found ${knowledge.Pending ?? 0}`);
-  assert((knowledge.Expired ?? 0) >= 130 && (knowledge.Expired ?? 0) <= 190, `Expected realistic K&E Expired range, found ${knowledge.Expired ?? 0}`);
+  assert((knowledge.Expired ?? 0) >= 20 && (knowledge.Expired ?? 0) <= 50, `Expected controlled K&E Expired range, found ${knowledge.Expired ?? 0}`);
 
   const fundingCurrency = countBy(data.customers, (customer) => customer.fundingCurrency);
   assert((fundingCurrency.SGD ?? 0) >= 240 && (fundingCurrency.SGD ?? 0) <= 300, `Expected realistic SGD funding range, found ${fundingCurrency.SGD ?? 0}`);
@@ -241,6 +243,41 @@ function validateDemoDistributions(data: DataBundle) {
   );
   assert(sessionEvents["session.started"] === 3, `Expected 3 session.started events, found ${sessionEvents["session.started"] ?? 0}`);
   assert(sessionEvents["session.switched"] === 1, `Expected 1 session.switched event, found ${sessionEvents["session.switched"] ?? 0}`);
+}
+
+function validateFreshnessDistributions(data: DataBundle, demoDate: string) {
+  if (data.customers.length !== 595) {
+    return;
+  }
+
+  const jensenBook = data.customers.filter((customer) => customer.rmId === "rm_junior_01");
+  const reviewQueue = jensenBook.filter((customer) => customer.tags.includes("ReviewDue")).length;
+  const noRecentContact = jensenBook.filter((customer) => {
+    if (!customer.lastContactedAt) return true;
+    return daysBetween(customer.lastContactedAt, demoDate) >= 120;
+  }).length;
+  const recent = jensenBook.filter((customer) => {
+    if (!customer.lastContactedAt) return false;
+    return daysBetween(customer.lastContactedAt, demoDate) <= 21;
+  }).length;
+  const overdueReviews = data.customers.filter((customer) => daysBetween(demoDate, customer.nextReviewDate) < 0).length;
+
+  assert(reviewQueue <= Math.floor(jensenBook.length * 0.3), `Jensen Review queue should be <=30% of book, found ${reviewQueue}/${jensenBook.length}`);
+  assert(noRecentContact <= Math.floor(jensenBook.length * 0.25), `Jensen No recent contact should be <=25% of book, found ${noRecentContact}/${jensenBook.length}`);
+  assert(recent >= Math.ceil(jensenBook.length * 0.1), `Jensen Recent contact should be >=10% of book, found ${recent}/${jensenBook.length}`);
+  assert(overdueReviews <= 40, `Team overdue reviews should be <=40, found ${overdueReviews}`);
+}
+
+function getDemoDate(data: DataBundle) {
+  const latestMarket = [...data.marketSnapshots].sort((a, b) => b.date.localeCompare(a.date))[0];
+  return latestMarket?.date ?? localDateString(new Date());
+}
+
+function localDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function daysBetween(from: string, to: string) {

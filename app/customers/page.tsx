@@ -77,14 +77,16 @@ export default async function CustomersPage({ searchParams }: PageProps) {
     ...scopeOptions
   };
 
-  const [customers, bookScope, rms, allEvents, allHoldings] = await Promise.all([
+  const [customers, bookScope, rms, allEvents, allHoldings, market] = await Promise.all([
     repo.listCustomers(listOptions),
     repo.listCustomers(scopeOptions),
     repo.listRms(),
     repo.listLifecycleEvents(),
-    repo.listHoldings()
+    repo.listHoldings(),
+    repo.getLatestMarketSnapshot()
   ]);
 
+  const referenceDate = market?.date;
   const totalPages = Math.max(1, Math.ceil(customers.total / pageSize));
   const lifecycleByCustomer = groupByCustomer(allEvents);
   const holdingsByCustomer = groupByCustomer(allHoldings);
@@ -96,7 +98,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
   // Filter chip counts — derived in-memory from the same logic the repo
   // applies. Mirrors lib/repo/local-json-repo.ts listCustomers filter
   // branches. Using bookScope.items avoids extra queries.
-  const filterCounts = countFilterChips(bookScope.items, allEvents, allHoldings);
+  const filterCounts = countFilterChips(bookScope.items, allEvents, allHoldings, referenceDate);
 
   return (
     <main className="space-y-5">
@@ -287,12 +289,12 @@ export default async function CustomersPage({ searchParams }: PageProps) {
           const events = lifecycleByCustomer.get(customer.customerId) ?? [];
           const signal = getLifecycleSignal(events);
           const tier = getPriorityTier(customer.priorityScore);
-          const review = getReviewStatus(customer.nextReviewDate);
-          const contactTone = getContactFreshnessTone(customer.lastContactedAt);
+          const review = getReviewStatus(customer.nextReviewDate, referenceDate);
+          const contactTone = getContactFreshnessTone(customer.lastContactedAt, referenceDate);
           const isVip = customer.serviceTier === "VIP";
           const priorityReason = getPriorityReason(customer);
           const signalRepeatsReview = Boolean(signal?.title.toLowerCase().includes("annual review"));
-          const copilotContext = `${customer.name}: ${priorityReason}. Last contact ${formatRelativeDays(customer.lastContactedAt)}. ${review.label}.`;
+          const copilotContext = `${customer.name}: ${priorityReason}. Last contact ${formatRelativeDays(customer.lastContactedAt, referenceDate)}. ${review.label}.`;
           return (
             <div
               key={customer.customerId}
@@ -346,7 +348,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <EngBadge tone={contactTone}>
-                    Last contact {formatRelativeDays(customer.lastContactedAt)}
+                    Last contact {formatRelativeDays(customer.lastContactedAt, referenceDate)}
                   </EngBadge>
                   <EngBadge tone={reviewTone(review.kind)}>
                     <span className={review.kind === "overdue" || review.kind === "due-soon" ? "ai-signal-text font-semibold" : ""}>
@@ -798,7 +800,8 @@ function makeCopilotHref(
 function countFilterChips(
   items: CustomerProfile[],
   events: LifecycleEvent[],
-  holdings: Holding[]
+  holdings: Holding[],
+  referenceDate?: string
 ) {
   const mismatchCustomerIds = new Set(
     holdings.filter((h) => h.riskStatus === "mismatch").map((h) => h.customerId)
@@ -832,7 +835,7 @@ function countFilterChips(
     if (c.tags.includes("ReviewDue")) reviewDue += 1;
     if (c.tags.includes("RiskMismatch") || mismatchCustomerIds.has(c.customerId)) rebalance += 1;
     if (c.hasDormantClientSignal) dormant += 1;
-    const since = daysSince(c.lastContactedAt);
+    const since = daysSince(c.lastContactedAt, referenceDate);
     if (!c.lastContactedAt || (since !== undefined && since >= 120)) noRecentContact += 1;
     if (c.tags.includes("Maturity") || maturityEventCustomerIds.has(c.customerId)) maturitySoon += 1;
     if (c.lastContactedAt && since !== undefined && since <= 21) recentlyContacted += 1;
