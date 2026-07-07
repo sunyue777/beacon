@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Mail,
   MessageSquare,
+  MoreHorizontal,
   PhoneCall,
   Search
 } from "lucide-react";
@@ -46,6 +47,16 @@ type SearchParams = {
 };
 
 type CopilotChannel = "email" | "whatsapp" | "call_script";
+type RowActionKey = "call" | "email" | "whatsapp";
+type RowActionTone = "call" | "email" | "whatsapp" | "neutral";
+
+type CustomerRowAction = {
+  key: RowActionKey;
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  tone: RowActionTone;
+};
 
 type PageProps = {
   searchParams?: Promise<SearchParams>;
@@ -295,10 +306,14 @@ export default async function CustomersPage({ searchParams }: PageProps) {
           const priorityReason = getPriorityReason(customer);
           const signalRepeatsReview = Boolean(signal?.title.toLowerCase().includes("annual review"));
           const copilotContext = `${customer.name}: ${priorityReason}. Last contact ${formatRelativeDays(customer.lastContactedAt, referenceDate)}. ${review.label}.`;
+          const rowActions = buildCustomerRowActions(customer, safeParams, copilotContext);
+          const primaryActionKey = getRecommendedActionKey(customer);
+          const primaryAction = rowActions.find((action) => action.key === primaryActionKey) ?? rowActions[0];
+          const overflowActions = rowActions.filter((action) => action.key !== primaryAction.key);
           return (
             <div
               key={customer.customerId}
-              className="group grid grid-cols-1 items-center gap-5 rounded-[14px] border border-border bg-card p-5 transition hover:border-primary/35 hover:bg-primary-soft/30 md:grid-cols-[1.2fr_1.3fr_minmax(220px,0.95fr)_86px]"
+              className="group grid grid-cols-1 items-center gap-5 rounded-[14px] border border-border bg-card p-5 transition hover:border-primary/35 hover:bg-primary-soft/30 md:grid-cols-[1.2fr_1.3fr_minmax(220px,0.95fr)_132px]"
             >
               {/* Identity */}
               <Link className="flex min-w-0 items-center gap-3.5" href={`/customers/${customer.customerId}`}>
@@ -315,13 +330,13 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                   <div className="truncate text-[17px] font-semibold">{customer.name}</div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <TierBadge tier={tier} />
-                    <ServiceTierBadge tier={customer.serviceTier} />
-                    <span className="rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      {customer.segment}
-                    </span>
+                    {customer.serviceTier !== "Standard" ? <ServiceTierBadge tier={customer.serviceTier} /> : null}
                   </div>
-                  <div className="mt-1 truncate text-[12px] text-muted-foreground">
-                    {customer.profession} · {customer.location.city}
+                  <div
+                    className="mt-1 truncate text-[12px] text-muted-foreground"
+                    title={`${customer.segment} segment`}
+                  >
+                    {customer.segment} · {customer.profession} · {customer.location.city}
                   </div>
                 </div>
               </Link>
@@ -366,37 +381,28 @@ export default async function CustomersPage({ searchParams }: PageProps) {
               </Link>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-1.5 md:flex-col md:items-stretch md:justify-self-end">
+              <div className="flex items-center justify-end gap-1.5 md:justify-self-end">
                 <RowAction
-                  href={makeCopilotHref(safeParams, {
-                    channel: "call_script",
-                    customerId: customer.customerId,
-                    intent: `Prepare a short call opener for ${copilotContext} Use evidence-led language and leave approval decisions to the RM.`
-                  })}
-                  icon={<PhoneCall className="h-3 w-3" />}
-                  label="Call prep"
-                  tone="call"
+                  href={primaryAction.href}
+                  icon={primaryAction.icon}
+                  label={primaryAction.label}
+                  primary
+                  tone={primaryAction.tone}
                 />
-                <RowAction
-                  href={makeCopilotHref(safeParams, {
-                    channel: "email",
-                    customerId: customer.customerId,
-                    intent: `Prepare a concise email draft for ${copilotContext} Keep it client-ready but in prepared state for RM approval.`
-                  })}
-                  icon={<Mail className="h-3 w-3" />}
-                  label="Email"
-                  tone="email"
-                />
-                <RowAction
-                  href={makeCopilotHref(safeParams, {
-                    channel: "whatsapp",
-                    customerId: customer.customerId,
-                    intent: `Prepare a short WhatsApp check-in for ${copilotContext} Keep it warm, factual, and client-friendly.`
-                  })}
-                  icon={<MessageSquare className="h-3 w-3" />}
-                  label="WhatsApp"
-                  tone="whatsapp"
-                />
+                <details className="relative">
+                  <summary
+                    aria-label="More actions"
+                    className="inline-flex h-[34px] w-[34px] cursor-pointer list-none items-center justify-center rounded-[8px] border border-border bg-card text-muted-foreground transition hover:border-primary/35 hover:text-foreground [&::-webkit-details-marker]:hidden"
+                    title="More actions"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </summary>
+                  <div className="absolute right-0 z-20 mt-1.5 w-36 rounded-[10px] border border-border bg-card p-1.5 shadow-soft">
+                    {overflowActions.map(({ key, ...action }) => (
+                      <OverflowRowAction key={key} {...action} />
+                    ))}
+                  </div>
+                </details>
               </div>
             </div>
           );
@@ -718,32 +724,115 @@ function reviewTone(kind: "overdue" | "due-soon" | "on-track" | "future"): "dang
   return "muted";
 }
 
+function buildCustomerRowActions(
+  customer: CustomerProfile,
+  params: SearchParams | undefined,
+  copilotContext: string
+): CustomerRowAction[] {
+  return [
+    {
+      key: "call",
+      href: makeCopilotHref(params, {
+        channel: "call_script",
+        customerId: customer.customerId,
+        intent: `Prepare a short call opener for ${copilotContext} Use evidence-led language and leave approval decisions to the RM.`
+      }),
+      icon: <PhoneCall className="h-3 w-3" />,
+      label: "Call prep",
+      tone: "call"
+    },
+    {
+      key: "email",
+      href: makeCopilotHref(params, {
+        channel: "email",
+        customerId: customer.customerId,
+        intent: `Prepare a concise email draft for ${copilotContext} Keep it client-ready but in prepared state for RM approval.`
+      }),
+      icon: <Mail className="h-3 w-3" />,
+      label: "Email",
+      tone: "email"
+    },
+    {
+      key: "whatsapp",
+      href: makeCopilotHref(params, {
+        channel: "whatsapp",
+        customerId: customer.customerId,
+        intent: `Prepare a short WhatsApp check-in for ${copilotContext} Keep it warm, factual, and client-friendly.`
+      }),
+      icon: <MessageSquare className="h-3 w-3" />,
+      label: "WhatsApp",
+      tone: "whatsapp"
+    }
+  ];
+}
+
+function getRecommendedActionKey(customer: CustomerProfile): RowActionKey {
+  const preferred = normalizePreferredActionKey(readPreferredChannel(customer));
+  if (preferred) return preferred;
+  if (customer.tags.some((tag) => tag === "Maturity" || tag === "ReviewDue")) return "email";
+  if (customer.tags.some((tag) => tag === "DormantCash" || tag === "ServiceWindow")) return "call";
+  return "whatsapp";
+}
+
+function readPreferredChannel(customer: CustomerProfile) {
+  if (!("preferredChannel" in customer)) return undefined;
+  return (customer as CustomerProfile & { preferredChannel?: unknown }).preferredChannel;
+}
+
+function normalizePreferredActionKey(channel: unknown): RowActionKey | undefined {
+  if (typeof channel !== "string") return undefined;
+  const normalized = channel.toLowerCase().replace(/[\s_-]/g, "");
+  if (["call", "callscript", "phone", "phonecall", "voice"].includes(normalized)) return "call";
+  if (["email", "mail"].includes(normalized)) return "email";
+  if (["whatsapp", "wa", "message", "sms"].includes(normalized)) return "whatsapp";
+  return undefined;
+}
+
 function RowAction({
   href,
   icon,
   label,
+  primary = false,
   tone = "neutral"
 }: {
   href: string;
   icon?: React.ReactNode;
   label: string;
-  tone?: "call" | "email" | "whatsapp" | "neutral";
+  primary?: boolean;
+  tone?: RowActionTone;
 }) {
-  const toneClass =
-    tone === "call"
+  const toneClass = primary
+    ? "border-primary bg-primary text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.16)] hover:bg-primary/90"
+    : tone === "call"
       ? "border-[hsl(var(--ai-border)/0.55)] bg-[hsl(var(--ai-surface)/0.72)] text-[hsl(var(--ai-accent))] hover:border-[hsl(var(--ai-accent)/0.55)]"
       : tone === "email"
         ? "border-[hsl(var(--ai-border)/0.48)] bg-[hsl(var(--ai-surface-2)/0.62)] text-[hsl(var(--ai-foreground))] hover:border-[hsl(var(--ai-accent)/0.45)]"
         : tone === "whatsapp"
           ? "border-[hsl(var(--brand-gold)/0.5)] bg-[hsl(var(--brand-gold)/0.16)] text-[hsl(var(--ai-foreground))] hover:border-[hsl(var(--ai-accent)/0.45)]"
           : "border-[hsl(var(--ai-border)/0.45)] bg-card text-[hsl(var(--ai-foreground))] hover:border-[hsl(var(--ai-accent)/0.45)]";
+  const sizeClass = primary
+    ? "min-w-[104px] px-3 py-2 text-[12px] font-semibold"
+    : "min-w-[88px] px-2.5 py-1.5 text-[11px] font-medium";
   return (
     <Link
       href={href}
       scroll={false}
-      className={`inline-flex min-w-[88px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-[11px] font-medium transition ${toneClass}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-[8px] border transition ${sizeClass} ${toneClass}`}
     >
       {icon ?? null}
+      {label}
+    </Link>
+  );
+}
+
+function OverflowRowAction({ href, icon, label }: CustomerRowAction) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      className="flex items-center gap-2 rounded-[7px] px-2.5 py-2 text-[11px] font-medium text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+    >
+      {icon}
       {label}
     </Link>
   );
