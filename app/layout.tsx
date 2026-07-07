@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
-import { getCurrentAccount } from "@/lib/auth/server-session";
+import { getOptionalCurrentAccount } from "@/lib/auth/server-session";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,12 +38,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const account = await getCurrentAccount();
+  const account = await getOptionalCurrentAccount();
   const fontVariables = `${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable}`;
   return (
     <html lang="en" suppressHydrationWarning className={fontVariables}>
       <body>
-        <AppShell role={account.role}>{children}</AppShell>
+        <AppShell account={account}>{children}</AppShell>
       </body>
     </html>
   );

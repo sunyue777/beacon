@@ -4,7 +4,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, Check, Eye, Moon, ShieldCheck, Sun, Users } from "lucide-react";
 import { useTheme } from "next-themes";
 import { demoAccounts, getRoleLabel, type DemoAccount } from "@/lib/auth/accounts";
-import { sessionCookieName } from "@/lib/auth/constants";
 
 type RoleStats = {
   directBook: string;
@@ -37,6 +36,7 @@ const roleStats: Record<string, RoleStats> = {
 export function LoginPanel() {
   const [selectedRmId, setSelectedRmId] = useState(demoAccounts[1].rmId);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const selected = useMemo(
     () => demoAccounts.find((account) => account.rmId === selectedRmId) ?? demoAccounts[1],
     [selectedRmId]
@@ -44,17 +44,23 @@ export function LoginPanel() {
 
   async function handleLogin() {
     setIsLoggingIn(true);
-    window.localStorage.setItem(sessionCookieName, selected.rmId);
-    document.cookie = `${sessionCookieName}=${selected.rmId}; path=/; max-age=2592000; SameSite=Lax`;
+    setLoginError(null);
 
     try {
-      await fetch("/api/audit/session", {
+      const response = await fetch("/api/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "session.started", rmId: selected.rmId, role: selected.role })
+        body: JSON.stringify({ rmId: selected.rmId })
       });
+      if (!response.ok) {
+        setLoginError("Session could not be started.");
+        setIsLoggingIn(false);
+        return;
+      }
     } catch {
-      // Network failure should not block login.
+      setLoginError("Session could not be started.");
+      setIsLoggingIn(false);
+      return;
     }
 
     window.setTimeout(() => {
@@ -152,6 +158,11 @@ export function LoginPanel() {
               {isLoggingIn ? "Signing in..." : "Enter workspace"}
               <ArrowRight className="h-4 w-4" />
             </button>
+            {loginError ? (
+              <p className="mt-3 rounded-[10px] border border-destructive/20 bg-destructive/10 px-3 py-2 text-[12px] leading-5 text-destructive">
+                {loginError}
+              </p>
+            ) : null}
           </div>
         </aside>
       </section>

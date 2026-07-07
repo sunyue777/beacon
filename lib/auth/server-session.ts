@@ -1,8 +1,19 @@
 import { cookies } from "next/headers";
-import { getDemoAccount } from "@/lib/auth/accounts";
+import { redirect } from "next/navigation";
+import { getDemoAccountById } from "@/lib/auth/accounts";
 import { sessionCookieName } from "@/lib/auth/constants";
+import { verifySessionCookieValue } from "@/lib/auth/session-cookie";
+
+export async function getOptionalCurrentAccount() {
+  const cookieStore = await cookies();
+  const rmId = await verifySessionCookieValue(cookieStore.get(sessionCookieName)?.value);
+  return getDemoAccountById(rmId);
+}
 
 export async function getCurrentAccount() {
-  const cookieStore = await cookies();
-  return getDemoAccount(cookieStore.get(sessionCookieName)?.value);
+  const account = await getOptionalCurrentAccount();
+  if (!account) {
+    redirect("/login");
+  }
+  return account;
 }

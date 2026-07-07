@@ -7,7 +7,7 @@ import { Lock, Moon, Sun } from "lucide-react";
 import { ThemeProvider, useTheme } from "next-themes";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { CopilotChatLauncher } from "@/components/copilot/copilot-chat-launcher";
-import type { RMRole } from "@/lib/repo/types";
+import type { DemoAccount } from "@/lib/auth/accounts";
 
 type NavItem = {
   href: string;
@@ -21,9 +21,9 @@ const navItems: NavItem[] = [
   { href: "/manager", label: "Management", managerOnly: true }
 ];
 
-export function AppShell({ children, role }: { children: React.ReactNode; role: RMRole }) {
+export function AppShell({ account, children }: { account?: DemoAccount; children: React.ReactNode }) {
   const pathname = usePathname();
-  const isManager = role === "Manager";
+  const isManager = account?.role === "Manager";
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -102,7 +102,7 @@ export function AppShell({ children, role }: { children: React.ReactNode; role: 
 
               {/* Right: account + theme */}
               <div className="flex items-center justify-end gap-2">
-                <SessionSwitcher />
+                {account ? <SessionSwitcher account={account} /> : null}
                 <ThemeToggle />
               </div>
             </div>

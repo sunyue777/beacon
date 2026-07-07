@@ -1,26 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { LogOut } from "lucide-react";
-import { getDemoAccount, getRoleLabel } from "@/lib/auth/accounts";
-import { sessionCookieName } from "@/lib/auth/constants";
+import { getRoleLabel, type DemoAccount } from "@/lib/auth/accounts";
 
-export function SessionSwitcher() {
-  const [rmId, setRmId] = useState<string | null>(null);
-  const account = useMemo(() => getDemoAccount(rmId), [rmId]);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(sessionCookieName);
-    const cookieValue = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith(`${sessionCookieName}=`))
-      ?.split("=")[1];
-    setRmId(stored ?? cookieValue ?? null);
-  }, []);
-
-  function signOut() {
-    window.localStorage.removeItem(sessionCookieName);
-    document.cookie = `${sessionCookieName}=; path=/; max-age=0; SameSite=Lax`;
+export function SessionSwitcher({ account }: { account: DemoAccount }) {
+  async function signOut() {
+    window.localStorage.removeItem("beacon_rm_id");
+    await fetch("/api/session", { method: "DELETE" }).catch(() => undefined);
     window.location.href = "/login";
   }
 

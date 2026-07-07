@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { demoAccounts } from "@/lib/auth/accounts";
-import { sessionCookieName } from "@/lib/auth/constants";
+import { getOptionalCurrentAccount } from "@/lib/auth/server-session";
 import { auditTypeForTransition, canTransitionAgentRun, isAgentRunTransition } from "@/lib/copilot/approval";
 import { getRepo } from "@/lib/repo";
 import { getRuntimeAgentRun, pushRuntimeAgentRun, pushRuntimeAudit, updateRuntimeAgentRun } from "@/lib/repo/runtime-store";
@@ -27,9 +25,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, reason: "invalid note" }, { status: 400 });
   }
 
-  const cookieStore = await cookies();
-  const sessionRmId = cookieStore.get(sessionCookieName)?.value;
-  const account = demoAccounts.find((item) => item.rmId === sessionRmId);
+  const account = await getOptionalCurrentAccount();
   if (!account) {
     return NextResponse.json({ ok: false, reason: "missing session" }, { status: 401 });
   }

@@ -53,6 +53,10 @@ export function getDemoAccount(rmId?: string | null) {
   return demoAccounts.find((account) => account.rmId === rmId) ?? demoAccounts[0];
 }
 
+export function getDemoAccountById(rmId?: string | null) {
+  return demoAccounts.find((account) => account.rmId === rmId);
+}
+
 export function getRoleLabel(role: RMRole) {
   if (role === "MidLevel") {
     return "Mid-level";

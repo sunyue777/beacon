@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { demoAccounts } from "@/lib/auth/accounts";
-import { sessionCookieName } from "@/lib/auth/constants";
+import { getOptionalCurrentAccount } from "@/lib/auth/server-session";
 import { isCopilotModule, type CopilotModelRoute, type CopilotRunRequest, type CopilotRuntime } from "@/lib/agent-studio/types";
 import { buildCopilotContext } from "@/lib/copilot/context";
 import { getClient } from "@/lib/copilot/dispatch";
@@ -49,9 +47,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, reason: "invalid ui context" }, { status: 400 });
   }
 
-  const cookieStore = await cookies();
-  const sessionRmId = cookieStore.get(sessionCookieName)?.value;
-  const account = demoAccounts.find((item) => item.rmId === sessionRmId);
+  const account = await getOptionalCurrentAccount();
   if (!account) {
     return NextResponse.json({ ok: false, reason: "missing session" }, { status: 401 });
   }
