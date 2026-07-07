@@ -548,6 +548,7 @@ function FilterChip({
   tone?: CustomerProfile["serviceTier"];
 }) {
   const tierStyle = tone ? serviceTierStyle(tone, active) : undefined;
+  const isZero = count === 0;
   return (
     <Link
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${
@@ -556,10 +557,10 @@ function FilterChip({
           : active
             ? "border-[hsl(var(--ai-border))] bg-ai-surface text-ai-accent shadow-[0_0_0_3px_hsl(var(--ai-glow)/0.08)]"
             : "border-border bg-card text-muted-foreground hover:border-[hsl(var(--ai-border)/0.65)] hover:bg-ai-surface/45 hover:text-ai-accent"
-      }`}
+      } ${isZero ? "opacity-45 hover:opacity-75" : ""}`}
       href={href}
       style={tierStyle}
-      title={title}
+      title={isZero ? `${title} No clients currently match this boundary.` : title}
     >
       {label}
       {count !== undefined ? (

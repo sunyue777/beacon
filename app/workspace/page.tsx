@@ -1036,36 +1036,42 @@ function WorkspaceQuickStatus({
           count={briefsReady}
           href="/customers"
         />
-        <IfRow
-          icon={<FileEdit className="h-4 w-4" />}
-          tone="ai"
-          label="Drafts open"
-          hint={pendingApprovals > 0 ? `${pendingApprovals} awaiting review` : "clear"}
-          count={drafts}
-          href="/customers?priority=high"
-        />
-        <IfRow
-          icon={<AlertTriangle className="h-4 w-4" />}
-          tone="warn"
-          label="Returned for edit"
-          hint={returnedDrafts.length > 0 ? "open and revise" : "none returned"}
-          count={returnedDrafts.length}
-          href={returnedDrafts[0] ? returnedDraftHref(returnedDrafts[0]) : "/workspace"}
-        />
-        <IfRow
-          icon={<Send className="h-4 w-4" />}
-          tone="ai"
-          label="Sent today"
-          hint="logged in trace"
-          count={sent}
-          href="/workspace"
-        />
+        {drafts === 0 && returnedDrafts.length === 0 && sent === 0 ? (
+          <AllClearRow />
+        ) : (
+          <>
+            <IfRow
+              icon={<FileEdit className="h-4 w-4" />}
+              tone="ai"
+              label="Drafts open"
+              hint={pendingApprovals > 0 ? `${pendingApprovals} awaiting review` : "clear"}
+              count={drafts}
+              href="/customers?priority=high"
+            />
+            <IfRow
+              icon={<AlertTriangle className="h-4 w-4" />}
+              tone="warn"
+              label="Returned for edit"
+              hint={returnedDrafts.length > 0 ? "open and revise" : "none returned"}
+              count={returnedDrafts.length}
+              href={returnedDrafts[0] ? returnedDraftHref(returnedDrafts[0]) : "/workspace"}
+            />
+            <IfRow
+              icon={<Send className="h-4 w-4" />}
+              tone="ai"
+              label="Sent today"
+              hint="logged in trace"
+              count={sent}
+              href="/workspace"
+            />
+          </>
+        )}
       </div>
 
       <div id="calendar" className="rounded-[14px] border border-[hsl(var(--ai-border)/0.45)] bg-[hsl(var(--ai-surface)/0.5)] px-4 py-3 shadow-soft">
         <div className="mb-1 flex items-center justify-between gap-3">
-          <div className="text-[15px] font-semibold">Service windows</div>
-          <span className="rounded-[4px] border border-[hsl(var(--brand-gold)/0.45)] bg-[hsl(var(--brand-gold)/0.14)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[hsl(var(--ai-foreground))]">
+          <div className="min-w-0 text-[15px] font-semibold">Service windows</div>
+          <span className="shrink-0 rounded-[4px] border border-[hsl(var(--brand-gold)/0.45)] bg-[hsl(var(--brand-gold)/0.14)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[hsl(var(--ai-foreground))]">
             queue-led
           </span>
         </div>
@@ -1227,11 +1233,11 @@ function CalendarSchedule({ customers }: { customers: CustomerProfile[] }) {
               : "border-border bg-muted/50 text-muted-foreground";
         return (
           <Link
-            className="grid grid-cols-[74px_1fr_auto] items-center gap-2 rounded-[9px] border border-border/60 bg-card/70 px-2.5 py-2 text-[11px] transition hover:border-primary/40 hover:bg-primary-soft/40"
+            className="grid grid-cols-[minmax(96px,auto)_minmax(0,1fr)_auto] items-center gap-2 rounded-[9px] border border-border/60 bg-card/70 px-2.5 py-2 text-[11px] transition hover:border-primary/40 hover:bg-primary-soft/40"
             href={`/customers/${slot.customer.customerId}`}
             key={slot.customer.customerId}
           >
-            <span className="truncate font-mono tabular text-muted-foreground">{slot.review.label}</span>
+            <span className="whitespace-nowrap font-mono tabular text-muted-foreground">{slot.review.label}</span>
             <span className="truncate font-medium">{slot.customer.name}</span>
             <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${toneClass}`}>{slot.kind}</span>
           </Link>
@@ -1245,6 +1251,20 @@ function CalendarSchedule({ customers }: { customers: CustomerProfile[] }) {
           Open Client Book to prepare service windows.
         </Link>
       ) : null}
+    </div>
+  );
+}
+
+function AllClearRow() {
+  return (
+    <div className="grid grid-cols-[auto_1fr] items-center gap-3 border-b border-border/50 py-3 last:border-0">
+      <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-success/12 text-success">
+        <Send className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium">No drafts in flight - all clear</div>
+        <div className="mt-0.5 text-[11px] text-muted-foreground">Returned edits and sent items are clear for today.</div>
+      </div>
     </div>
   );
 }

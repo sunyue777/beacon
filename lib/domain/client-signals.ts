@@ -27,24 +27,62 @@ export function getPriorityReason(customer: CustomerProfile) {
   const tag = customer.tags[0];
   switch (tag) {
     case "DormantCash":
-      return "Dormant cash - review yield options";
+      return pickReason(customer, [
+        "Dormant cash - review yield options",
+        "Idle cash balance - prepare yield context",
+        "Cash position unchanged - prepare liquidity check"
+      ]);
     case "Maturity":
-      return "Holding maturing soon - prepare reinvestment options";
+      return pickReason(customer, [
+        "Holding maturing soon - prepare reinvestment options",
+        "Maturity window open - gather renewal context",
+        "Upcoming maturity - prepare liquidity and rollover notes"
+      ]);
     case "RiskMismatch":
-      return "Risk profile and portfolio mismatch detected";
+      return pickReason(customer, [
+        "Risk profile and portfolio mismatch detected",
+        "Portfolio risk drift - inspect alignment evidence",
+        "Risk alignment check needed before client follow-up"
+      ]);
     case "MarketMove":
-      return "Market move impact on portfolio";
+      return pickReason(customer, [
+        "Market move impact on portfolio",
+        "Market movement surfaced in holdings",
+        "Portfolio exposure moved with market conditions"
+      ]);
     case "Lifecycle":
-      return "Lifecycle event flagged";
+      return pickReason(customer, [
+        "Lifecycle event flagged",
+        "Relationship event ready for follow-up",
+        "Client context changed - prepare touchpoint"
+      ]);
     case "HighValue":
-      return "High value relationship - proactive touch";
+      return pickReason(customer, [
+        "High value relationship - proactive touch",
+        "Priority relationship - prepare coverage touch",
+        "Key relationship - gather next conversation context"
+      ]);
     case "ReviewDue":
-      return "Annual review due";
+      return pickReason(customer, [
+        "Annual review due",
+        "Review window open - prepare agenda",
+        "Annual review approaching - gather evidence pack"
+      ]);
     case "ServiceWindow":
-      return "Service window - prepare relationship touch";
+      return pickReason(customer, [
+        "Service window - prepare relationship touch",
+        "Service cadence opened - prepare client context",
+        "Coverage window open - prepare next touchpoint"
+      ]);
     default:
       return `${customer.serviceTier} client - ${customer.riskProfile}`;
   }
+}
+
+function pickReason(customer: CustomerProfile, variants: string[]) {
+  const suffix = Number(customer.customerId.slice(-4));
+  const index = Number.isFinite(suffix) ? suffix % variants.length : customer.priorityScore % variants.length;
+  return variants[index];
 }
 
 export function getLifecycleSignal(events: LifecycleEvent[]) {

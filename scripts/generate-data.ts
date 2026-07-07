@@ -564,15 +564,34 @@ function buildTransactions(customer: CustomerProfile, accounts: Account[], holdi
 }
 
 function buildLifecycleEvents(customer: CustomerProfile, index: number): LifecycleEvent[] {
-  return [0, 1, 2].map((offset) => ({
-    eventId: `${customer.customerId}_event_${offset + 1}`,
-    customerId: customer.customerId,
-    date: dateDaysAgo(7 + offset * 23 + (index % 9)),
-    type: (["Review", "Maturity", "LifeEvent", "Market", "Portfolio"] as const)[(index + offset) % 5],
-    title: ["Annual review due", "Structured note maturity", "Liquidity planning", "Market movement", "Portfolio drift"][(index + offset) % 5],
-    description: "Demo lifecycle signal used to help the RM prepare a targeted conversation.",
-    importance: offset === 0 && customer.priorityScore > 75 ? "High" : offset === 1 ? "Medium" : "Low"
-  }));
+  return [0, 1, 2].map((offset) => {
+    const type = (["Review", "Maturity", "LifeEvent", "Market", "Portfolio"] as const)[(index + offset) % 5];
+    const title = ["Annual review due", "Structured note maturity", "Liquidity planning", "Market movement", "Portfolio drift"][(index + offset) % 5];
+    return {
+      eventId: `${customer.customerId}_event_${offset + 1}`,
+      customerId: customer.customerId,
+      date: dateDaysAgo(7 + offset * 23 + (index % 9)),
+      type,
+      title,
+      description: lifecycleDescription(type),
+      importance: offset === 0 && customer.priorityScore > 75 ? "High" : offset === 1 ? "Medium" : "Low"
+    };
+  });
+}
+
+function lifecycleDescription(type: LifecycleEvent["type"]) {
+  switch (type) {
+    case "Review":
+      return "Review window is open; prepare agenda, holdings context, and approval evidence.";
+    case "Maturity":
+      return "A product maturity is approaching; prepare reinvestment context and liquidity notes.";
+    case "LifeEvent":
+      return "Relationship context changed; prepare a focused check-in before the next client touch.";
+    case "Market":
+      return "Market movement may affect the portfolio; prepare a concise impact summary.";
+    case "Portfolio":
+      return "Portfolio drift is visible; prepare the holdings evidence before review.";
+  }
 }
 
 function buildPolicyRules(): InstitutionPolicyRule[] {

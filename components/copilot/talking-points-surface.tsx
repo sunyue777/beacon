@@ -116,7 +116,7 @@ export function TalkingPointsSurface({
             Select one point to prepare
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            The first three are shaped from customer data and portfolio signals; demo generation is LLM-ready, with institution priority rules layered later.
+            Each point links to the customer evidence that produced it.
           </p>
         </div>
         <span className="rounded-full border border-border bg-background px-2.5 py-1 font-mono text-[10px] uppercase text-muted-foreground">
@@ -225,7 +225,7 @@ export function TalkingPointsSurface({
             {run ? (
               <AIOutput
                 title="Prepared talking points"
-                status={run.fallbackMode ? "Fallback trace" : run.llmProvider === "mock" ? "Mock trace" : "Live trace"}
+                status={run.fallbackMode ? "Fallback trace" : run.llmProvider === "mock" ? "Rules trace" : "Live trace"}
                 generatedAt={run.finishedAt}
                 summary={(output.bullets ?? []).join(" ")}
                 run={run}
@@ -253,4 +253,3 @@ function normalizeSuggestedPoints(points: SuggestedTalkingPoint[]) {
     id: point.id || `point-${index + 1}`
   }));
 }
-

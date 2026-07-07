@@ -47,7 +47,7 @@ export function NextActionsPanel({
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[11px] text-muted-foreground">
-          Linked to the first three suggested talking points.
+          Evidence-linked actions prepared from the selected talking points.
         </div>
       </div>
 

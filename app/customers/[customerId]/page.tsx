@@ -151,8 +151,6 @@ export default async function CustomerPage({ params, searchParams }: PageProps) 
         </Link>
         <span className="opacity-50">/</span>
         <span className="text-foreground">{customer.name}</span>
-        <span className="opacity-50">/</span>
-        <span className="font-mono tabular">{customer.customerId}</span>
       </div>
 
       {reviewMode ? (
@@ -173,7 +171,7 @@ export default async function CustomerPage({ params, searchParams }: PageProps) 
       <KpiStrip customer={customer} compliance={compliance} />
 
       {/* Tabs */}
-      <nav className="flex gap-6 overflow-x-auto border-b border-border">
+      <nav className="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-border pb-px">
         {tabs.map((tab) => {
           const active = tab.id === activeTab;
           return (
@@ -277,7 +275,7 @@ function IdentityCard({
 
       {/* Identity meta */}
       <div className="relative">
-        <h1 className="font-display flex items-center gap-3 text-[32px] font-medium leading-[1.1] tracking-tight">
+        <h1 className="font-display flex items-center gap-3 text-[32px] font-medium leading-[1.1] tracking-tight" data-customer-name={customer.name}>
           {customer.name}
           <span
             className="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
@@ -432,7 +430,7 @@ function ApprovalReviewPanel({
                 {status}
               </span>
             </div>
-            <p className="mt-2 max-h-[220px] overflow-y-auto whitespace-pre-line text-[12px] leading-5 text-muted-foreground">
+            <p className="mt-2 whitespace-pre-line text-[12px] leading-5 text-muted-foreground">
               {reviewContent}
             </p>
             <div className="mt-2 text-[11px] text-muted-foreground">

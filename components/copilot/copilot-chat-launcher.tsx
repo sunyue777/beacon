@@ -83,6 +83,7 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
   const queryCustomerId = searchParams.get("copilotCustomerId") ?? undefined;
   const scopedCustomerId = customerId ?? getCustomerIdFromPath(pathname) ?? queryCustomerId;
   const isCustomerScoped = Boolean(scopedCustomerId);
+  const [customerScopeName, setCustomerScopeName] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [module, setModule] = useState<ChatModule>("term_explainer");
   const [channel, setChannel] = useState<DraftChannel>("email");
@@ -101,12 +102,13 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const scopeLabel = isCustomerScoped
-    ? `Customer context · ${scopedCustomerId}`
+    ? `Customer context · ${customerScopeName ?? "Current client"}`
     : pathname?.startsWith("/customers")
       ? "Client Book scope · no customer selected"
       : pathname?.startsWith("/workspace")
         ? "Workspace scope · no customer selected"
         : "General workspace scope";
+  const scopeTitle = isCustomerScoped ? `Customer context · ${scopedCustomerId}` : scopeLabel;
   const draftOutput = result?.output?.output as DraftAssistOutput | undefined;
   const termOutput = result?.output?.output as TermExplainerOutput | undefined;
 
@@ -121,6 +123,15 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
       );
     }
   }, [isCustomerScoped, module, queryModule, scopedCustomerId]);
+
+  useEffect(() => {
+    if (!isCustomerScoped) {
+      setCustomerScopeName(null);
+      return;
+    }
+    const value = document.querySelector<HTMLElement>("[data-customer-name]")?.dataset.customerName?.trim();
+    setCustomerScopeName(value || null);
+  }, [isCustomerScoped, pathname, scopedCustomerId]);
 
   useEffect(() => {
     if (!queryModule) return;
@@ -259,7 +270,7 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
               <BeaconMark className="h-5 w-5 shrink-0" variant="mono" />
               <div>
                 <div className="text-xs font-semibold">Your Beacon</div>
-                <div className="max-w-[240px] truncate text-[10px] opacity-75">{scopeLabel}</div>
+                <div className="max-w-[240px] truncate text-[10px] opacity-75" title={scopeTitle}>{scopeLabel}</div>
               </div>
             </div>
             <button aria-label="Close Your Beacon" className="rounded-full p-1 hover:bg-white/10" onClick={() => setOpen(false)} type="button">

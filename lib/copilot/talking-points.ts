@@ -316,7 +316,7 @@ function buildTalkingPointsOutput(context: CopilotContext): TalkingPointsOutput 
     `Priority score ${customer.priorityScore} mapped to ${priorityTier}.`,
     `Risk profile ${customer.riskProfile}; funding currency ${customer.fundingCurrency}.`,
     `Loaded ${holdings.length} holdings, ${transactions.length} transactions, and ${lifecycleEvents.length} lifecycle signals.`,
-    `Runtime selected: ${requestedRuntime}; current execution uses local mock skill-direct.`,
+    `Runtime selected: ${requestedRuntime}; current execution uses Beacon local rules.`,
     `RM input focus: ${preferences.focusLabel}.`
   ];
 

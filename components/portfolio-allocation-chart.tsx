@@ -40,6 +40,10 @@ export function PortfolioAllocationChart({
     return <div className="flex h-72 items-center justify-center rounded-md border border-border bg-background text-sm text-muted-foreground">No holdings yet</div>;
   }
 
+  if (data.length === 1) {
+    return <AllocationBars data={data} showValues={showValues} />;
+  }
+
   return (
     <div className={`grid gap-4 ${layout === "split" ? "md:grid-cols-[1fr_0.8fr]" : ""}`}>
       <div className={layout === "split" ? "h-72" : "h-60"}>
@@ -66,6 +70,31 @@ export function PortfolioAllocationChart({
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function AllocationBars({
+  data,
+  showValues
+}: {
+  data: Array<{ name: string; pct: number; value: number }>;
+  showValues: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md border border-border bg-background px-3 py-3">
+        <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium">{data[0]?.name ?? "Portfolio"}</span>
+          <span className="font-semibold">{showValues ? formatCurrency(data[0]?.value ?? 0, "USD", { compact: true }) : `${(data[0]?.pct ?? 0).toFixed(1)}%`}</span>
+        </div>
+        <div className="h-3 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full" style={{ background: colors[0], width: `${Math.min(100, Math.max(0, data[0]?.pct ?? 0))}%` }} />
+        </div>
+      </div>
+      <div className="rounded-md border border-dashed border-border bg-muted/35 px-3 py-2 text-xs leading-5 text-muted-foreground">
+        Current holdings resolve to one product category, so Beacon shows a bar state instead of a pie slice.
       </div>
     </div>
   );

@@ -58,8 +58,7 @@ export default async function ManagerPage({ searchParams }: PageProps) {
   const rmById = new Map(rms.map((rm) => [rm.rmId, rm]));
 
   const totalAum = customers.items.reduce((acc, customer) => acc + customer.totalAum, 0);
-  const reviewedThisWeek = customers.items.filter((c) => c.lastContactedAt).length;
-  const reviewTarget = customers.total;
+  const clientsWithContactHistory = customers.items.filter((c) => c.lastContactedAt).length;
   const driftCustomers = customers.items.filter((c) => c.tags.includes("RiskMismatch"));
   const driftCases = driftCustomers.length;
   const driftScope = {
@@ -121,10 +120,10 @@ export default async function ManagerPage({ searchParams }: PageProps) {
       <section className="grid gap-3 md:grid-cols-5">
         <Kpi label="Team AUM" value={formatCurrency(totalAum, "USD", { compact: true })} delta="aggregated book" deltaTone="up" />
         <Kpi
-          label="Clients reviewed"
-          value={`${reviewedThisWeek} / ${reviewTarget}`}
-          delta={`${Math.round((reviewedThisWeek / reviewTarget) * 100)}% on schedule`}
-          deltaTone="up"
+          label="Clients in scope"
+          value={String(customers.total)}
+          delta={`${clientsWithContactHistory} with contact history`}
+          deltaTone="muted"
         />
         <Kpi
           label="Drafts pending you"
@@ -151,7 +150,7 @@ export default async function ManagerPage({ searchParams }: PageProps) {
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div className="flex flex-col gap-4">
           <TeamPerformanceCard coverage={coverage} customers={customers.items} />
-          <RiskDriftCard customers={customers.items} rms={rms} />
+          <RiskDriftCard customers={customers.items} />
           <ComplianceHygieneCard hygiene={hygiene} />
         </div>
 
@@ -258,7 +257,7 @@ function ManagerBrief({
           className="mt-3 font-mono text-[10px] tabular"
           style={{ color: "hsl(var(--ai-foreground) / 0.55)" }}
         >
-          prepared from team_metrics + drafts/pending + portfolio_drift - templated manager brief
+          Prepared from team activity and portfolio drift signals.
         </div>
       </div>
     </div>
@@ -457,9 +456,7 @@ function HealthPill({ kind }: { kind: "good" | "watch" | "behind" }) {
 
 /* ============================== Risk drift roll-up ============================== */
 
-function RiskDriftCard({ customers, rms }: { customers: CustomerProfile[]; rms: RMUser[] }) {
-  const rmName = (id: string) => rms.find((r) => r.rmId === id)?.name?.split(" ")[0] ?? id;
-
+function RiskDriftCard({ customers }: { customers: CustomerProfile[] }) {
   // Real derivations from customer fields: no tag proxies. Each label
   // describes exactly the rule it computes.
   const mismatch = customers.filter((c) => c.tags.includes("RiskMismatch"));
@@ -478,7 +475,7 @@ function RiskDriftCard({ customers, rms }: { customers: CustomerProfile[]; rms: 
   const previewNames = (list: CustomerProfile[]) =>
     list
       .slice(0, 3)
-      .map((c) => `${rmName(c.rmId)} (${c.name.split(" ")[0]})`)
+      .map((c) => c.name)
       .join(" / ");
 
   const clientFileReview = uniqueCustomers([...suitabilityExpired, ...kneeBlocked]);
