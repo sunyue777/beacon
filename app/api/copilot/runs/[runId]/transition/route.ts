@@ -4,7 +4,7 @@ import { demoAccounts } from "@/lib/auth/accounts";
 import { sessionCookieName } from "@/lib/auth/constants";
 import { auditTypeForTransition, canTransitionAgentRun, isAgentRunTransition } from "@/lib/copilot/approval";
 import { getRepo } from "@/lib/repo";
-import { getRuntimeAgentRun, pushRuntimeAgentRun, pushRuntimeAudit, updateRuntimeAgentRun } from "@/lib/repo/runtime-events";
+import { getRuntimeAgentRun, pushRuntimeAgentRun, pushRuntimeAudit, updateRuntimeAgentRun } from "@/lib/repo/runtime-store";
 import type { AgentRun, AuditEvent } from "@/lib/repo/types";
 
 type RouteContext = {
@@ -34,7 +34,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, reason: "missing session" }, { status: 401 });
   }
 
-  let run = getRuntimeAgentRun(runId);
+  let run = await getRuntimeAgentRun(runId);
   if (!run) {
     const repo = getRepo();
     const seededRun = (await repo.listAgentRuns()).find((item) => item.runId === runId);
@@ -42,7 +42,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ ok: false, reason: "runtime run not found" }, { status: 404 });
     }
     run = normalizeSeedRunForApproval(seededRun);
-    pushRuntimeAgentRun(run);
+    await pushRuntimeAgentRun(run);
   }
 
   if (run.customerId) {
@@ -59,7 +59,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const now = new Date().toISOString();
-  const updated = updateRuntimeAgentRun(runId, (current) => ({
+  const updated = await updateRuntimeAgentRun(runId, (current) => ({
     ...current,
     state: payload.transition as AgentRun["state"],
     steps: [
@@ -83,7 +83,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, reason: "runtime run not found" }, { status: 404 });
   }
 
-  pushRuntimeAudit({
+  await pushRuntimeAudit({
     eventId: `copilot_transition_${runId}_${Date.now()}`,
     type: auditTypeForTransition(payload.transition),
     actorId: account.rmId,

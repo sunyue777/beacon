@@ -2,8 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { daysSince } from "@/lib/domain/client-signals";
 import type { Repo } from "./repo";
-import { getRuntimeAgentRuns, getRuntimeAudit } from "./runtime-events";
-import { getRuntimeTranscripts } from "./runtime-events";
+import { getRuntimeAgentRuns, getRuntimeAudit, getRuntimeTranscripts } from "./runtime-store";
 import type {
   Account,
   AgentRun,
@@ -156,7 +155,7 @@ export class LocalJsonRepo implements Repo {
 
   async listAgentRuns(options: { customerId?: string; limit?: number } = {}): Promise<AgentRun[]> {
     const bundle = (await this.data()).agentRuns;
-    const merged = [...getRuntimeAgentRuns(), ...bundle];
+    const merged = [...(await getRuntimeAgentRuns()), ...bundle];
     const items = merged
       .filter((item) => !options.customerId || item.customerId === options.customerId)
       .sort((a, b) => b.finishedAt.localeCompare(a.finishedAt));
@@ -167,7 +166,7 @@ export class LocalJsonRepo implements Repo {
     // Merge bundle events with any runtime-generated audit events (e.g. login
     // sessions). This keeps the audit pulse fresh without touching disk.
     const bundle = (await this.data()).auditEvents;
-    const merged = [...getRuntimeAudit(), ...bundle];
+    const merged = [...(await getRuntimeAudit()), ...bundle];
     const items = merged
       .filter((item) => !options.customerId || item.customerId === options.customerId)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -180,7 +179,7 @@ export class LocalJsonRepo implements Repo {
 
   async listTranscripts(options: { customerId?: string; limit?: number } = {}): Promise<Transcript[]> {
     const bundle = (await this.data()).transcripts ?? [];
-    const merged = [...getRuntimeTranscripts(), ...bundle];
+    const merged = [...(await getRuntimeTranscripts()), ...bundle];
     const items = merged
       .filter((item) => !options.customerId || item.customerId === options.customerId)
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt));

@@ -7,7 +7,7 @@ import { buildCopilotContext } from "@/lib/copilot/context";
 import { getClient } from "@/lib/copilot/dispatch";
 import { getCopilotModuleConfig } from "@/lib/copilot/module-map";
 import { getRepo } from "@/lib/repo";
-import { pushRuntimeAgentRun, pushRuntimeAudit } from "@/lib/repo/runtime-events";
+import { pushRuntimeAgentRun, pushRuntimeAudit } from "@/lib/repo/runtime-store";
 import type { Account, AuditEvent, CustomerProfile, Holding, LifecycleEvent, MarketSnapshot, Product, Transaction } from "@/lib/repo/types";
 
 export async function POST(request: Request) {
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   if (payload.customerId) {
     const canView = await repo.canViewCustomer(payload.customerId, { rmId: account.rmId, role: account.role });
     if (!canView) {
-      writePermissionAudit(account, payload);
+      await writePermissionAudit(account, payload);
       return NextResponse.json({ ok: false, reason: "customer outside permission scope" }, { status: 403 });
     }
 
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     if (payload.module === "draft_assist" && customer.rmId !== account.rmId) {
-      writePermissionAudit(account, payload);
+      await writePermissionAudit(account, payload);
       return NextResponse.json(
         { ok: false, reason: "client-touch drafts are limited to the owning RM" },
         { status: 403 }
@@ -114,10 +114,10 @@ export async function POST(request: Request) {
   });
   const result = await client.run(payload, context);
   if (result.ok) {
-    pushRuntimeAgentRun(result.output);
-    writeOutputAudit(account, result.output.runId, result.output.customerId);
+    await pushRuntimeAgentRun(result.output);
+    await writeOutputAudit(account, result.output.runId, result.output.customerId);
     if (result.output.moduleId === "draft_assist" && result.output.approvalRequired !== "auto") {
-      writeDraftCreatedAudit(account, result.output);
+      await writeDraftCreatedAudit(account, result.output);
     }
   }
 
@@ -132,7 +132,7 @@ function isModelRoute(value: unknown): value is CopilotModelRoute {
   return value === "mock" || value === "siliconflow";
 }
 
-function writePermissionAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, payload: CopilotRunRequest) {
+async function writePermissionAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, payload: CopilotRunRequest) {
   const event: AuditEvent = {
     eventId: `copilot_denied_${account.rmId}_${Date.now()}`,
     type: "role.permission.required",
@@ -145,10 +145,10 @@ function writePermissionAudit(account: { rmId: string; role: AuditEvent["actorRo
       source: "api/copilot/run"
     }
   };
-  pushRuntimeAudit(event);
+  await pushRuntimeAudit(event);
 }
 
-function writeOutputAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, runId: string, customerId?: string) {
+async function writeOutputAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, runId: string, customerId?: string) {
   const event: AuditEvent = {
     eventId: `copilot_output_${account.rmId}_${Date.now()}`,
     type: "ai.output.shown",
@@ -161,10 +161,10 @@ function writeOutputAudit(account: { rmId: string; role: AuditEvent["actorRole"]
       source: "api/copilot/run"
     }
   };
-  pushRuntimeAudit(event);
+  await pushRuntimeAudit(event);
 }
 
-function writeDraftCreatedAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, run: { runId: string; customerId?: string; channel: string; approvalRequired?: string }) {
+async function writeDraftCreatedAudit(account: { rmId: string; role: AuditEvent["actorRole"] }, run: { runId: string; customerId?: string; channel: string; approvalRequired?: string }) {
   const event: AuditEvent = {
     eventId: `draft_created_${account.rmId}_${Date.now()}`,
     type: "draft.created",
@@ -179,5 +179,5 @@ function writeDraftCreatedAudit(account: { rmId: string; role: AuditEvent["actor
       approvalRequired: run.approvalRequired
     }
   };
-  pushRuntimeAudit(event);
+  await pushRuntimeAudit(event);
 }

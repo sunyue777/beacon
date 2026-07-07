@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { demoAccounts } from "@/lib/auth/accounts";
 import { sessionCookieName } from "@/lib/auth/constants";
-import { pushRuntimeAudit } from "@/lib/repo/runtime-events";
+import { pushRuntimeAudit } from "@/lib/repo/runtime-store";
 import type { AuditEvent, RMRole } from "@/lib/repo/types";
 
 interface SessionPayload {
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         ? { from: fromAccount?.role ?? null, fromRmId: fromAccount?.rmId ?? null }
         : { source: "demo-login" }
   };
-  pushRuntimeAudit(event);
+  await pushRuntimeAudit(event);
 
   return NextResponse.json({ ok: true, eventId: event.eventId });
 }

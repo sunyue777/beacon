@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { demoAccounts } from "@/lib/auth/accounts";
 import { sessionCookieName } from "@/lib/auth/constants";
 import { getRepo } from "@/lib/repo";
-import { pushRuntimeAgentRun, pushRuntimeAudit, pushRuntimeTranscript } from "@/lib/repo/runtime-events";
+import { pushRuntimeAgentRun, pushRuntimeAudit, pushRuntimeTranscript } from "@/lib/repo/runtime-store";
 import type { AuditEvent } from "@/lib/repo/types";
 import { runVoiceScenario } from "@/lib/voice/run";
 import { voiceScenarioCatalog, type VoiceIntegrationMode, type VoiceScenario } from "@/lib/voice/types";
@@ -57,12 +57,12 @@ export async function POST(request: Request) {
   });
 
   if (result.transcript) {
-    pushRuntimeTranscript(result.transcript);
+    await pushRuntimeTranscript(result.transcript);
   }
   if (result.agentRun) {
-    pushRuntimeAgentRun(result.agentRun);
+    await pushRuntimeAgentRun(result.agentRun);
   }
-  writeVoiceAudit({
+  await writeVoiceAudit({
     account,
     customerId: customer.customerId,
     runId: result.agentRun?.runId,
@@ -83,7 +83,7 @@ function isVoiceIntegrationMode(value: unknown): value is VoiceIntegrationMode {
   return value === "web_call_simulator" || value === "dyna_voice_saas";
 }
 
-function writeVoiceAudit({
+async function writeVoiceAudit({
   account,
   customerId,
   handoffRequired,
@@ -114,18 +114,18 @@ function writeVoiceAudit({
       source: "api/voice/run"
     }
   };
-  pushRuntimeAudit({
+  await pushRuntimeAudit({
     ...base,
     eventId: `voice_started_${account.rmId}_${Date.now()}`,
     type: "voice.call.started"
   } satisfies AuditEvent);
-  pushRuntimeAudit({
+  await pushRuntimeAudit({
     ...base,
     eventId: `voice_completed_${account.rmId}_${Date.now()}`,
     type: "voice.call.completed"
   } satisfies AuditEvent);
   if (handoffRequired) {
-    pushRuntimeAudit({
+    await pushRuntimeAudit({
       ...base,
       eventId: `voice_handoff_${account.rmId}_${Date.now()}`,
       type: "voice.handoff.required"
