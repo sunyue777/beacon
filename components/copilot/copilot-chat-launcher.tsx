@@ -5,11 +5,12 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Check, Copy, GripHorizontal, X } from "lucide-react";
 import { AIOutput } from "@/components/ai/ai-output";
 import { BeaconMark } from "@/components/brand/beacon-mark";
+import type { DemoEngine } from "@/lib/config/demo-engine";
 import type { AgentRun } from "@/lib/repo/types";
 
 type DraftChannel = "email" | "whatsapp" | "call_script";
 type ChatModule = "term_explainer" | "draft_assist";
-type ModelMode = "live" | "mock";
+type ModelMode = DemoEngine;
 type DraftFormat =
   | "concise_touch"
   | "meeting_confirm"
@@ -72,7 +73,7 @@ const draftFormatOptions: Record<DraftChannel, Array<{ value: DraftFormat; label
   ]
 };
 
-export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
+export function CopilotChatLauncher({ customerId, defaultEngine = "mock" }: { customerId?: string; defaultEngine?: ModelMode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryKey = searchParams.toString();
@@ -88,7 +89,7 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
   const [module, setModule] = useState<ChatModule>("term_explainer");
   const [channel, setChannel] = useState<DraftChannel>("email");
   const [draftFormat, setDraftFormat] = useState<DraftFormat>("concise_touch");
-  const [modelMode, setModelMode] = useState<ModelMode>("live");
+  const [modelMode, setModelMode] = useState<ModelMode>(defaultEngine);
   const [panelPosition, setPanelPosition] = useState<{ left: number; top: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [instruction, setInstruction] = useState(
@@ -157,25 +158,28 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
     if (module === "draft_assist" && !scopedCustomerId) return;
     setLoading(true);
     setResult(null);
-    const response = await fetch("/api/copilot/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        module,
-        customerId: scopedCustomerId,
-        intent: instruction,
-        runtimeOverride: "skill-direct",
-        ...(modelMode === "mock" ? { modelRoute: "mock" } : {}),
-        personalization: {
-          customerHabits: [],
-          rmCustomInput: instruction
-        },
-        uiContext: {
-          surface: "beacon-chatbot",
-          ...(module === "draft_assist" ? { channel, format: draftFormat } : {})
-        }
-      })
-    });
+    const [response] = await Promise.all([
+      fetch("/api/copilot/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          module,
+          customerId: scopedCustomerId,
+          intent: instruction,
+          runtimeOverride: "skill-direct",
+          modelRoute: modelRouteFor(modelMode),
+          personalization: {
+            customerHabits: [],
+            rmCustomInput: instruction
+          },
+          uiContext: {
+            surface: "beacon-chatbot",
+            ...(module === "draft_assist" ? { channel, format: draftFormat } : {})
+          }
+        })
+      }),
+      waitForStructuringFrame()
+    ]);
     const payload = (await response.json()) as RunResult;
     setResult(payload);
     setCopiedKey(null);
@@ -306,6 +310,9 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
                       <option value="mock">Local mock</option>
                     </select>
                   </label>
+                  <p className="self-end text-[10px] leading-4 text-muted-foreground">
+                    {modelMode === "live" ? "Live sends prompts to the configured third-party LLM API." : "Local mock stays inside Beacon runtime."}
+                  </p>
                 </div>
                 {module === "draft_assist" ? (
                   <div className="grid grid-cols-2 gap-2">
@@ -351,14 +358,19 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
                     </label>
                   </div>
                 ) : null}
-                <textarea
-                  className={`resize-y rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground ${
-                    module === "term_explainer" ? "min-h-[118px]" : "min-h-[82px]"
-                  }`}
-                  value={instruction}
-                  onChange={(event) => setInstruction(event.target.value)}
-                  placeholder="Tell Your Beacon what to prepare."
-                />
+                <div className="grid gap-1">
+                  <textarea
+                    className={`resize-y rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground ${
+                      module === "term_explainer" ? "min-h-[118px]" : "min-h-[82px]"
+                    }`}
+                    value={instruction}
+                    onChange={(event) => setInstruction(event.target.value)}
+                    placeholder="Tell Your Beacon what to prepare."
+                  />
+                  <p className="text-[10px] leading-4 text-muted-foreground">
+                    Demo environment - do not enter real client information.
+                  </p>
+                </div>
                 <button
                   className="rounded-md px-3 py-2 text-xs font-semibold text-[hsl(var(--brand-navy))] disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={(module === "draft_assist" && !scopedCustomerId) || loading}
@@ -367,7 +379,7 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
                   type="button"
                 >
                   {loading
-                    ? "Preparing..."
+                    ? "Structuring..."
                     : module === "draft_assist" && !scopedCustomerId
                       ? "Select a client first"
                       : module === "term_explainer"
@@ -381,6 +393,15 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
                 ) : null}
               </div>
             </div>
+
+            {module === "draft_assist" && loading ? (
+              <DraftStructuringSkeleton
+                channel={channel}
+                customerName={customerScopeName ?? "this client"}
+                formatLabel={draftFormatOptions[channel].find((option) => option.value === draftFormat)?.label ?? "Draft"}
+                instruction={instruction}
+              />
+            ) : null}
 
             {module === "term_explainer" && termOutput && result?.output ? (
               <div className="grid gap-3">
@@ -467,6 +488,90 @@ export function CopilotChatLauncher({ customerId }: { customerId?: string }) {
 function getCustomerIdFromPath(pathname: string | null) {
   const match = pathname?.match(/^\/customers\/([^/?#]+)/);
   return match?.[1];
+}
+
+function modelRouteFor(mode: ModelMode) {
+  return mode === "live" ? "siliconflow" : "mock";
+}
+
+function waitForStructuringFrame() {
+  return new Promise((resolve) => window.setTimeout(resolve, 450));
+}
+
+function DraftStructuringSkeleton({
+  channel,
+  customerName,
+  formatLabel,
+  instruction
+}: {
+  channel: DraftChannel;
+  customerName: string;
+  formatLabel: string;
+  instruction: string;
+}) {
+  const preview = buildDraftSkeletonText(channel, customerName, instruction);
+  return (
+    <div
+      aria-live="polite"
+      className="rounded-[12px] border p-3"
+      style={{
+        background: "hsl(var(--background) / 0.78)",
+        borderColor: "hsl(var(--ai-border) / 0.42)"
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold">Rule-based draft frame</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">{formatLabel}</div>
+        </div>
+        <span className="rounded-full border border-[hsl(var(--ai-border)/0.48)] bg-card px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+          structuring...
+        </span>
+      </div>
+      <pre className="mt-3 whitespace-pre-wrap rounded-md border border-[hsl(var(--ai-border)/0.35)] bg-card p-3 font-sans text-xs leading-5 text-muted-foreground">
+        {preview}
+      </pre>
+      <div className="mt-2 grid gap-1 text-[11px] leading-5 text-muted-foreground">
+        <span>- Evidence placeholders: selected signal, customer context, RM note.</span>
+        <span>- Compliance stance: prepared state, RM review required.</span>
+      </div>
+    </div>
+  );
+}
+
+function buildDraftSkeletonText(channel: DraftChannel, customerName: string, instruction: string) {
+  if (channel === "call_script") {
+    return [
+      `Call prep for ${customerName}`,
+      "",
+      "Opener: Acknowledge context and ask permission to review.",
+      "Reason for call: Link to the selected client signal.",
+      `RM note: ${instruction}`,
+      "Close: Confirm next step and required review."
+    ].join("\n");
+  }
+
+  if (channel === "whatsapp") {
+    return [
+      `Hi ${customerName},`,
+      "",
+      "I am preparing a short, factual check-in based on the selected client signal.",
+      `RM note: ${instruction}`,
+      "",
+      "Next step: keep it concise and leave any decision to the client."
+    ].join("\n");
+  }
+
+  return [
+    `Subject: Follow-up for ${customerName}`,
+    "",
+    `Hi ${customerName},`,
+    "",
+    "I am preparing a client-ready note based on the selected signal and evidence.",
+    `RM note: ${instruction}`,
+    "",
+    "Next step: include approval-safe wording before sending."
+  ].join("\n");
 }
 
 async function copyText(key: string, value: string, setCopiedKey: (key: string | null) => void) {

@@ -27,6 +27,7 @@ import {
 import { getRiskAlignment, getRiskComplianceSummary, type ComplianceState } from "@/lib/domain/risk-compliance";
 import { RiskAlignmentCard } from "@/components/risk/risk-alignment-card";
 import { getCurrentAccount } from "@/lib/auth/server-session";
+import { getDefaultEngine, type DemoEngine } from "@/lib/config/demo-engine";
 import { getRepo } from "@/lib/repo";
 import { toUsd } from "@/lib/utils/currency";
 import { formatCurrency } from "@/lib/utils/format";
@@ -141,6 +142,7 @@ export default async function CustomerPage({ params, searchParams }: PageProps) 
   const communicationRows = buildCommunicationLog(customer, communicationEvents, events);
   const documents = demoDocuments(customer);
   const canTouchCustomer = customer.rmId === account.rmId;
+  const defaultEngine = getDefaultEngine();
 
   return (
     <main className="space-y-4">
@@ -222,7 +224,15 @@ export default async function CustomerPage({ params, searchParams }: PageProps) 
               transactions={visibleTransactions}
             />
           ) : null}
-          {activeTab === "ai" ? <AIInsightsTab customer={customer} compliance={compliance} latestRun={latestRun} canTouchCustomer={canTouchCustomer} /> : null}
+          {activeTab === "ai" ? (
+            <AIInsightsTab
+              customer={customer}
+              compliance={compliance}
+              latestRun={latestRun}
+              canTouchCustomer={canTouchCustomer}
+              defaultEngine={defaultEngine}
+            />
+          ) : null}
         </div>
       </div>
     </main>
@@ -1308,11 +1318,13 @@ function AlignmentTab({
 function AIInsightsTab({
   canTouchCustomer,
   customer,
+  defaultEngine,
   compliance,
   latestRun
 }: {
   canTouchCustomer: boolean;
   customer: CustomerProfile;
+  defaultEngine: DemoEngine;
   compliance: ReturnType<typeof getRiskComplianceSummary>;
   latestRun?: AgentRun;
 }) {
@@ -1323,7 +1335,7 @@ function AIInsightsTab({
     <section className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
         <AIRailCard tag="AI Suggested Talking Points" timestamp="4 selectable points">
-          <TalkingPointsSurface customerId={customer.customerId} suggestedPoints={suggestedPoints} />
+          <TalkingPointsSurface customerId={customer.customerId} suggestedPoints={suggestedPoints} defaultEngine={defaultEngine} />
         </AIRailCard>
         <AIRailCard tag="Next Best Action" timestamp={latestRun ? "trace ready" : "ranked"}>
           <NextActionsPanel actions={nextActions} customerId={customer.customerId} canExecute={canTouchCustomer} />

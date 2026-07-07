@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from "next-themes";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { CopilotChatLauncher } from "@/components/copilot/copilot-chat-launcher";
 import type { DemoAccount } from "@/lib/auth/accounts";
+import type { DemoEngine } from "@/lib/config/demo-engine";
 
 type NavItem = {
   href: string;
@@ -21,7 +22,7 @@ const navItems: NavItem[] = [
   { href: "/manager", label: "Management", managerOnly: true }
 ];
 
-export function AppShell({ account, children }: { account?: DemoAccount; children: React.ReactNode }) {
+export function AppShell({ account, children, defaultEngine }: { account?: DemoAccount; children: React.ReactNode; defaultEngine: DemoEngine }) {
   const pathname = usePathname();
   const isManager = account?.role === "Manager";
 
@@ -109,7 +110,7 @@ export function AppShell({ account, children }: { account?: DemoAccount; childre
           </header>
           <div className="relative z-10 mx-auto max-w-7xl px-7 py-8 pb-24">{children}</div>
           <Suspense fallback={null}>
-            <CopilotChatLauncher />
+            <CopilotChatLauncher defaultEngine={defaultEngine} />
           </Suspense>
         </div>
       )}

@@ -112,11 +112,16 @@ export async function POST(request: Request) {
   });
   const result = await client.run(effectivePayload, context);
   if (result.ok) {
-    if (budgetGuardStep) {
+    const structuringStep = getStructuringTraceStep(effectivePayload);
+    if (structuringStep || budgetGuardStep) {
       result.output = {
         ...result.output,
-        fallbackMode: true,
-        steps: [...result.output.steps, budgetGuardStep]
+        fallbackMode: result.output.fallbackMode || Boolean(budgetGuardStep),
+        steps: [
+          ...(structuringStep ? [structuringStep] : []),
+          ...result.output.steps,
+          ...(budgetGuardStep ? [budgetGuardStep] : [])
+        ]
       };
     }
     await pushRuntimeAgentRun(result.output);
@@ -158,6 +163,23 @@ async function getLlmBudgetGuardStep(payload: CopilotRunRequest): Promise<AgentR
       count,
       cap,
       fallbackRoute: "mock"
+    }
+  };
+}
+
+function getStructuringTraceStep(payload: CopilotRunRequest): AgentRun["steps"][number] | undefined {
+  if (payload.module !== "draft_assist" && payload.module !== "talking_points") {
+    return undefined;
+  }
+
+  return {
+    name: "Rule-based skeleton",
+    source: "BeaconRuleSkeleton",
+    output: {
+      stage: "structuring...",
+      note: "Local rules prepared the first visible response structure before model completion.",
+      module: payload.module,
+      surface: typeof payload.uiContext?.surface === "string" ? payload.uiContext.surface : undefined
     }
   };
 }

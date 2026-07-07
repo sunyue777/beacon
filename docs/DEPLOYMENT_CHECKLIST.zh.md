@@ -42,6 +42,7 @@ npm run validate-data
 ```env
 AI_MODE=demo
 BEACON_LLM=siliconflow
+BEACON_DEFAULT_ENGINE=mock
 BEACON_ACCESS_CODE=...
 BEACON_DAILY_LLM_CAP=200
 SESSION_SECRET=...
@@ -72,6 +73,7 @@ UPSTASH_REDIS_REST_TOKEN=...
 2. 配置 Environment Variables：
    - `AI_MODE`
    - `BEACON_LLM`
+   - `BEACON_DEFAULT_ENGINE`
    - `SILICONFLOW_API_KEY`
    - `SILICONFLOW_BASE_URL`
    - `SILICONFLOW_MODEL`
@@ -95,6 +97,13 @@ UPSTASH_REDIS_REST_TOKEN=...
 - 每个客户 engagement 使用一个 `BEACON_ACCESS_CODE`。
 - 演示周期结束后更换 Vercel 环境变量并重新部署，旧访问 cookie 即失效。
 - Live LLM 日预算默认 `BEACON_DAILY_LLM_CAP=200`；超额后 demo 自动降级到 local runtime。
+- 共享演示环境建议 `BEACON_DEFAULT_ENGINE=mock`；需要 Live 时在页面 Engine 控件显式切换。
+
+演示前检查：
+
+- 用 `Live LLM` 完整彩排一次 draft assist 与 talking points，确认第三方 LLM key、预算守卫和 fallback 都正常。
+- 准备一份完整备份录屏，覆盖 Login、Workspace、Client Book、Client 360、Manager approval。
+- 用现场投影比例检查 `1366x768`，确认 Login、Workspace、Client Book 行级动作、Client 360 tab 与 Beacon 浮窗不重叠。
 
 ## 4. Secret hygiene
 

@@ -3,6 +3,7 @@ import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { getOptionalCurrentAccount } from "@/lib/auth/server-session";
+import { getDefaultEngine } from "@/lib/config/demo-engine";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,11 +40,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const account = await getOptionalCurrentAccount();
+  const defaultEngine = getDefaultEngine();
   const fontVariables = `${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable}`;
   return (
     <html lang="en" suppressHydrationWarning className={fontVariables}>
       <body>
-        <AppShell account={account}>{children}</AppShell>
+        <AppShell account={account} defaultEngine={defaultEngine}>{children}</AppShell>
       </body>
     </html>
   );

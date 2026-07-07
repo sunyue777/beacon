@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { AIOutput } from "@/components/ai/ai-output";
+import type { DemoEngine } from "@/lib/config/demo-engine";
 import type { AgentRun } from "@/lib/repo/types";
 import { cn } from "@/lib/utils/cn";
 
 type RuntimeChoice = "skill-direct";
-type ModelRouteChoice = "live" | "mock";
+type ModelRouteChoice = DemoEngine;
 
 interface TalkingPointsOutput {
   headline?: string;
@@ -61,13 +62,15 @@ const fallbackSuggestedPoints: SuggestedTalkingPoint[] = [
 
 export function TalkingPointsSurface({
   customerId,
+  defaultEngine = "mock",
   suggestedPoints = fallbackSuggestedPoints
 }: {
   customerId: string;
+  defaultEngine?: ModelRouteChoice;
   suggestedPoints?: SuggestedTalkingPoint[];
 }) {
   const [runtime, setRuntime] = useState<RuntimeChoice>("skill-direct");
-  const [modelRoute, setModelRoute] = useState<ModelRouteChoice>("live");
+  const [modelRoute, setModelRoute] = useState<ModelRouteChoice>(defaultEngine);
   const [habits, setHabits] = useState("Prefers phone before email\nLikes concise evidence before scenarios");
   const normalizedPoints = normalizeSuggestedPoints(suggestedPoints);
   const [selectedPointId, setSelectedPointId] = useState(normalizedPoints[0]?.id ?? "context");
@@ -79,25 +82,28 @@ export function TalkingPointsSurface({
     const selectedPoint = resolveSelectedPoint();
     setLoading(true);
     setResult(null);
-    const response = await fetch("/api/copilot/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        module: "talking_points",
-        customerId,
-        intent: selectedPoint.body,
-        runtimeOverride: runtime,
-        ...(modelRoute === "mock" ? { modelRoute: "mock" } : {}),
-        personalization: {
-          customerHabits: habits.split("\n").map((item) => item.trim()).filter(Boolean),
-          rmCustomInput: selectedPoint.editable ? rmInput : selectedPoint.body
-        },
-        uiContext: {
-          surface: "client-360-copilot",
-          selectedTalkingPoint: selectedPoint
-        }
-      })
-    });
+    const [response] = await Promise.all([
+      fetch("/api/copilot/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          module: "talking_points",
+          customerId,
+          intent: selectedPoint.body,
+          runtimeOverride: runtime,
+          modelRoute: modelRouteFor(modelRoute),
+          personalization: {
+            customerHabits: habits.split("\n").map((item) => item.trim()).filter(Boolean),
+            rmCustomInput: selectedPoint.editable ? rmInput : selectedPoint.body
+          },
+          uiContext: {
+            surface: "client-360-copilot",
+            selectedTalkingPoint: selectedPoint
+          }
+        })
+      }),
+      waitForStructuringFrame()
+    ]);
     const payload = (await response.json()) as RunResult;
     setResult(payload);
     setLoading(false);
@@ -151,16 +157,21 @@ export function TalkingPointsSurface({
                 </div>
                 <div className="mt-2 text-[13px] font-semibold">{point.title}</div>
                 {point.editable ? (
-                  <textarea
-                    className="mt-2 min-h-[54px] w-full resize-y rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground"
-                    onChange={(event) => setRmInput(event.target.value)}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedPointId(point.id);
-                    }}
-                    placeholder="Write the RM's own talking point..."
-                    value={rmInput}
-                  />
+                  <>
+                    <textarea
+                      className="mt-2 min-h-[54px] w-full resize-y rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground"
+                      onChange={(event) => setRmInput(event.target.value)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedPointId(point.id);
+                      }}
+                      placeholder="Write the RM's own talking point..."
+                      value={rmInput}
+                    />
+                    <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+                      Demo environment - do not enter real client information.
+                    </p>
+                  </>
                 ) : (
                   <p className="mt-2 text-xs leading-5 text-muted-foreground">{body}</p>
                 )}
@@ -181,6 +192,9 @@ export function TalkingPointsSurface({
               <option value="live">Live LLM</option>
               <option value="mock">Local mock</option>
             </select>
+            <span className="text-[10px] leading-4 text-muted-foreground">
+              {modelRoute === "live" ? "Live sends prompts to the configured third-party LLM API." : "Local mock stays inside Beacon runtime."}
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">
             Customer habits
@@ -190,6 +204,9 @@ export function TalkingPointsSurface({
               value={habits}
               onChange={(event) => setHabits(event.target.value)}
             />
+            <span className="text-[10px] leading-4 text-muted-foreground">
+              Demo environment - do not enter real client information.
+            </span>
           </label>
         </div>
 
@@ -201,7 +218,7 @@ export function TalkingPointsSurface({
             onClick={runCopilot}
             disabled={loading}
           >
-            {loading ? "Preparing..." : runLabel}
+            {loading ? "Structuring..." : runLabel}
           </button>
           {result ? (
             <span className="text-[11px] text-muted-foreground">
@@ -209,6 +226,8 @@ export function TalkingPointsSurface({
             </span>
           ) : null}
         </div>
+
+        {loading ? <TalkingPointsStructuringSkeleton habits={habits} selectedPoint={selectedPoint} /> : null}
 
         {output ? (
           <div className="grid gap-3 rounded-md border bg-background p-3" style={{ borderColor: "hsl(var(--ai-border) / 0.45)" }}>
@@ -252,4 +271,52 @@ function normalizeSuggestedPoints(points: SuggestedTalkingPoint[]) {
     ...point,
     id: point.id || `point-${index + 1}`
   }));
+}
+
+function modelRouteFor(mode: ModelRouteChoice) {
+  return mode === "live" ? "siliconflow" : "mock";
+}
+
+function waitForStructuringFrame() {
+  return new Promise((resolve) => window.setTimeout(resolve, 450));
+}
+
+function TalkingPointsStructuringSkeleton({
+  habits,
+  selectedPoint
+}: {
+  habits: string;
+  selectedPoint: SuggestedTalkingPoint;
+}) {
+  const habitLines = habits.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 2);
+  return (
+    <div
+      aria-live="polite"
+      className="grid gap-3 rounded-md border bg-background p-3"
+      style={{ borderColor: "hsl(var(--ai-border) / 0.45)" }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: "hsl(var(--ai-accent-pink))" }}>
+            Rule-based talking point frame
+          </div>
+          <div className="mt-1 text-sm font-semibold">{selectedPoint.title}</div>
+        </div>
+        <span className="rounded-full border border-[hsl(var(--ai-border)/0.48)] bg-card px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+          structuring...
+        </span>
+      </div>
+      <div className="rounded-md border border-[hsl(var(--ai-border)/0.35)] bg-card p-3 text-xs leading-5 text-muted-foreground">
+        <p className="font-medium text-foreground">{selectedPoint.body}</p>
+        <ul className="mt-2 space-y-1">
+          <li>- Opening context: {selectedPoint.source}</li>
+          <li>- Evidence angle: portfolio, lifecycle, and service signals.</li>
+          <li>- RM note: keep wording factual and approval-safe.</li>
+          {habitLines.map((habit) => (
+            <li key={habit}>- Client habit: {habit}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
 }
