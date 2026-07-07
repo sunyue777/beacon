@@ -31,17 +31,21 @@ export async function POST(request: Request) {
   const response = NextResponse.json({ ok: true, account: { rmId: account.rmId, role: account.role, name: account.name } });
   response.cookies.set(sessionCookieName, await createSessionCookieValue(account.rmId), sessionCookieOptions());
 
-  const switched = previous && previous.rmId !== account.rmId;
-  await pushRuntimeAudit({
-    eventId: `session_${account.rmId}_${Date.now()}`,
-    type: switched ? "session.switched" : "session.started",
-    actorId: account.rmId,
-    actorRole: account.role,
-    timestamp: new Date().toISOString(),
-    payload: switched
-      ? { from: previous.role, fromRmId: previous.rmId }
-      : { source: "demo-login" }
-  } satisfies AuditEvent);
+  try {
+    const switched = previous && previous.rmId !== account.rmId;
+    await pushRuntimeAudit({
+      eventId: `session_${account.rmId}_${Date.now()}`,
+      type: switched ? "session.switched" : "session.started",
+      actorId: account.rmId,
+      actorRole: account.role,
+      timestamp: new Date().toISOString(),
+      payload: switched
+        ? { from: previous.role, fromRmId: previous.rmId }
+        : { source: "demo-login" }
+    } satisfies AuditEvent);
+  } catch (error) {
+    console.warn("Session audit event could not be persisted.", error);
+  }
 
   return response;
 }

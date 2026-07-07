@@ -124,7 +124,7 @@ export function LoginPanel() {
                   </div>
                 </div>
                 <span className="rounded-full border border-border bg-background/70 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                  v1.2 demo
+                  beacon 2.0
                 </span>
               </div>
             </div>
