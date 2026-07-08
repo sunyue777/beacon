@@ -12,7 +12,10 @@ export function BeaconMark({
   const tower = variant === "brand" ? "hsl(var(--foreground))" : "currentColor";
   const wave = variant === "mono" || variant === "watermark" ? "currentColor" : "hsl(var(--brand-blue))";
   const gold = variant === "mono" || variant === "watermark" ? "currentColor" : "hsl(var(--brand-gold))";
-  const cutout = variant === "watermark" ? "hsl(var(--background))" : "hsl(var(--card))";
+  // "mono" sits on fixed brand-navy surfaces (launcher FAB and panel header);
+  // a theme-driven card color there desyncs light/dark, so use a true cutout.
+  const cutout =
+    variant === "watermark" ? "hsl(var(--background))" : variant === "mono" ? "transparent" : "hsl(var(--card))";
   const beamOpacity = variant === "watermark" ? 0.15 : 0.28;
   const waveOpacity = variant === "watermark" ? 0.7 : 1;
 

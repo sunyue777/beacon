@@ -138,6 +138,24 @@ export function getProductivityForBook(customers: CustomerProfile[]) {
   };
 }
 
+/**
+ * Weekly touch counts for the trailing `weeks` weeks, oldest first, derived
+ * from customer.lastContactedAt (same demo simplification as
+ * getProductivityForBook: one customer = one touch in its contact week).
+ */
+export function getWeeklyTouchSeries(customers: CustomerProfile[], weeks = 6): number[] {
+  const series = new Array<number>(weeks).fill(0);
+  for (const customer of customers) {
+    const since = daysSince(customer.lastContactedAt);
+    if (since === undefined || since < 0) continue;
+    const weeksAgo = Math.floor(since / 7);
+    if (weeksAgo < weeks) {
+      series[weeks - 1 - weeksAgo] += 1;
+    }
+  }
+  return series;
+}
+
 /* --------------------------- Compliance hygiene ---------------------------- */
 
 /**

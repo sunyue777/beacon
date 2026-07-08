@@ -32,8 +32,10 @@ import {
   getComplianceHygiene,
   getProductivityForBook,
   getReturnedDraftsForAccount,
-  getRmCoverage
+  getRmCoverage,
+  getWeeklyTouchSeries
 } from "@/lib/domain/governance";
+import { TrendBars } from "@/components/ui/trend-bars";
 import { getRepo } from "@/lib/repo";
 import type {
   AuditEvent,
@@ -113,6 +115,7 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
         <PersonalNorthStarTile
           account={account}
           customerCount={ownedBook.total}
+          customers={ownedBook.items}
           productivity={personalProductivity}
         />
         <TeamCoverageStrip coverage={coverage} runCount={runs.length} />
@@ -171,6 +174,7 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
       <PersonalNorthStarTile
         account={account}
         customerCount={ownedBook.total}
+        customers={ownedBook.items}
         productivity={personalProductivity}
       />
 
@@ -820,48 +824,69 @@ function CoverageMetric({ label, value, warn }: { label: string; value: string; 
 function PersonalNorthStarTile({
   account,
   customerCount,
+  customers,
   productivity
 }: {
   account: { name: string; role: RMRole; accent: string };
   customerCount: number;
+  customers: CustomerProfile[];
   productivity: ReturnType<typeof getProductivityForBook>;
 }) {
+  const accent = `hsl(var(--${account.accent}))`;
+  const weekly = getWeeklyTouchSeries(customers);
+
   return (
     <section
-      className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-[14px] border bg-card px-4 py-3 shadow-soft"
-      style={{ borderLeft: `3px solid hsl(var(--${account.accent}))` }}
+      className="relative flex flex-wrap items-center gap-x-7 gap-y-4 overflow-hidden rounded-[14px] border bg-card px-5 py-3.5 shadow-soft"
+      style={{ borderLeft: `3px solid ${accent}` }}
     >
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-56"
+        style={{ background: `linear-gradient(90deg, hsl(var(--${account.accent}) / 0.07), transparent)` }}
+      />
+
+      <div className="relative flex min-w-0 items-center gap-3">
         <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: `hsl(var(--${account.accent}) / 0.12)`, color: `hsl(var(--${account.accent}))` }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: `hsl(var(--${account.accent}) / 0.14)`, color: accent }}
         >
-          <Activity className="h-4 w-4" aria-hidden />
+          <Activity className="h-[18px] w-[18px]" aria-hidden />
         </span>
         <div className="min-w-0">
           <div className="text-[13px] font-semibold leading-tight">Service pulse</div>
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
             <Users className="h-3 w-3" aria-hidden />
-            <span className="tabular">{customerCount}</span>
+            <span className="tabular">{customerCount} clients</span>
           </div>
         </div>
       </div>
-      <div className="ml-auto flex items-center gap-8">
-        <div className="flex items-center gap-2.5" title="Drafts sent + recorded calls, weekly">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Send className="h-4 w-4" aria-hidden />
-          </span>
+
+      <div className="relative ml-auto flex items-center gap-7">
+        <div className="hidden h-9 w-px bg-border sm:block" aria-hidden />
+
+        <div className="flex items-end gap-3" title="Clients touched per week, trailing 6 weeks (drafts sent + recorded calls)">
+          <TrendBars values={weekly} color={accent} label="Weekly touches, trailing 6 weeks" />
           <div>
-            <div className="font-display text-[22px] font-medium leading-none tracking-tight tabular">
+            <div className="font-display text-[26px] font-medium leading-none tracking-tight tabular">
               {productivity.touchesPerWeek}
-              <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">/wk</span>
+              <span className="ml-1 align-baseline text-[12px] font-normal text-muted-foreground">/wk</span>
             </div>
-            <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Touches</div>
+            <div className="mt-1 text-[9.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Governed touches
+            </div>
           </div>
         </div>
+
+        <div className="hidden h-9 w-px bg-border sm:block" aria-hidden />
+
         <div className="flex items-center gap-2.5" title="Share of book contacted in the last 90 days">
-          <CoverageRing pct={productivity.contactedIn90dPct} label={`${productivity.contactedIn90dPct}% of book contacted in 90 days`} />
-          <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <CoverageRing
+            pct={productivity.contactedIn90dPct}
+            size={44}
+            label={`${productivity.contactedIn90dPct}% of book contacted in 90 days`}
+          />
+          <div className="text-[9.5px] font-medium uppercase leading-[1.5] tracking-[0.12em] text-muted-foreground">
             90d
             <br />
             coverage
@@ -892,8 +917,8 @@ function ApprovalQueueCard({
   const runById = new Map(runs.map((run) => [run.runId, run]));
   const queueTitle = account.role === "Junior" ? "Awaiting manager review" : "Awaiting your approval";
   const queueDescription = account.role === "Junior"
-    ? `${queue.length} client-facing drafts are with a manager reviewer.`
-    : `${queue.length} live client-facing drafts - sorted by recency with content and trace`;
+    ? `${queue.length} client-facing ${queue.length === 1 ? "draft is" : "drafts are"} with a manager reviewer.`
+    : `${queue.length} live client-facing ${queue.length === 1 ? "draft" : "drafts"} - sorted by recency with content and trace`;
   const footerHref = account.role === "Manager" ? "/manager" : "/customers?priority=high";
   const footerLabel = account.role === "Manager" ? "See all approvals in Management" : "Open Client Book";
   return (

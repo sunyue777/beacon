@@ -52,6 +52,9 @@ export function CoverageRing({
         fontWeight="600"
       >
         {clamped}
+        <tspan fontSize="6.5" fontWeight="500" opacity="0.65">
+          %
+        </tspan>
       </text>
     </svg>
   );
