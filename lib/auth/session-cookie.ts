@@ -58,11 +58,14 @@ function getSessionSecret() {
   if (configured) {
     return configured;
   }
+  if (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV === "production") {
+    throw new Error("SESSION_SECRET is required to sign Beacon RM sessions.");
+  }
   if (!sessionSecretWarningState.__beaconSessionDevSecretWarned__) {
     sessionSecretWarningState.__beaconSessionDevSecretWarned__ = true;
-    console.warn("SESSION_SECRET is not set; using the Beacon demo session fallback.");
+    console.warn("SESSION_SECRET is not set; using the local Beacon demo session secret.");
   }
-  return "beacon-demo-session-fallback";
+  return "beacon-local-dev-session-secret";
 }
 
 function constantTimeEqual(left: string, right: string) {

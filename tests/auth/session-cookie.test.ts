@@ -20,12 +20,52 @@ test("session cookie rejects unsigned or tampered values", async () => {
   assert.equal(await verifySessionCookieValue(tamperedSignature), undefined);
 });
 
-test("session cookie still works in Vercel production when SESSION_SECRET is not configured", async () => {
+test("session cookie uses the demo fallback outside Vercel production when SESSION_SECRET is not configured", async () => {
   const previousSecret = process.env.SESSION_SECRET;
   const previousNodeEnv = process.env.NODE_ENV;
   const previousVercelEnv = process.env.VERCEL_ENV;
 
   delete process.env.SESSION_SECRET;
+  setEnv("NODE_ENV", "production");
+  setEnv("VERCEL_ENV", "preview");
+
+  try {
+    const value = await createSessionCookieValue("rm_mid_01");
+    assert.equal(await verifySessionCookieValue(value), "rm_mid_01");
+  } finally {
+    restoreEnv("SESSION_SECRET", previousSecret);
+    restoreEnv("NODE_ENV", previousNodeEnv);
+    restoreEnv("VERCEL_ENV", previousVercelEnv);
+  }
+});
+
+test("session cookie requires SESSION_SECRET in Vercel production", async () => {
+  const previousSecret = process.env.SESSION_SECRET;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+
+  delete process.env.SESSION_SECRET;
+  setEnv("NODE_ENV", "production");
+  setEnv("VERCEL_ENV", "production");
+
+  try {
+    await assert.rejects(
+      () => createSessionCookieValue("rm_mid_01"),
+      /SESSION_SECRET is required to sign Beacon RM sessions\./
+    );
+  } finally {
+    restoreEnv("SESSION_SECRET", previousSecret);
+    restoreEnv("NODE_ENV", previousNodeEnv);
+    restoreEnv("VERCEL_ENV", previousVercelEnv);
+  }
+});
+
+test("session cookie signs normally in Vercel production when SESSION_SECRET is configured", async () => {
+  const previousSecret = process.env.SESSION_SECRET;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+
+  setEnv("SESSION_SECRET", "production-session-secret");
   setEnv("NODE_ENV", "production");
   setEnv("VERCEL_ENV", "production");
 
