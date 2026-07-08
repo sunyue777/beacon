@@ -366,6 +366,13 @@ function buildRuleChecks(run: AgentRun | undefined, output: Record<string, unkno
     checks.push("Junior RM client-facing draft routed to Manager review.");
   }
 
+  for (const step of run?.steps ?? []) {
+    if (!step.source.startsWith("rule_")) continue;
+    const output = isRecord(step.output) ? step.output : {};
+    const note = stringValue(output.note) ?? stringValue(output.action) ?? stringValue(output.result);
+    checks.push(note ? `${step.source}: ${note}` : `${step.source}: checked`);
+  }
+
   const checklist = stringArray(output.approvalChecklist);
   for (const item of checklist) checks.push(item);
 

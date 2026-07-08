@@ -17,6 +17,7 @@ import { NextActionsPanel, type NextActionItem } from "@/components/copilot/next
 import { TalkingPointsSurface, type SuggestedTalkingPoint } from "@/components/copilot/talking-points-surface";
 import { AIOutput } from "@/components/ai/ai-output";
 import { HistoryTimeline } from "@/components/evidence/history-timeline";
+import { getComplianceGateReason } from "@/lib/copilot/run-inspection";
 import {
   formatMaskedAccountId,
   formatRelativeDays,
@@ -416,6 +417,7 @@ function ApprovalReviewPanel({
   const reviewContent = formatReviewContent(run, customer);
   const title = "AI trace review";
   const status = mode === "approval" ? "Pending review" : "Trace opened";
+  const gateReason = getComplianceGateReason(run);
   const history = buildEvidenceTimeline({
     events: run?.runId ? events.filter((item) => item.runId === run.runId) : event ? [event] : [],
     run,
@@ -456,7 +458,14 @@ function ApprovalReviewPanel({
         >
           <div className="rounded-[12px] border border-[hsl(var(--ai-border)/0.5)] bg-background p-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[13px] font-semibold">Content to review</div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <div className="text-[13px] font-semibold">Content to review</div>
+                {gateReason ? (
+                  <span className="rounded-md border border-danger/30 bg-danger/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-danger">
+                    {gateReason}
+                  </span>
+                ) : null}
+              </div>
               <span className="rounded-full border border-[hsl(var(--brand-gold)/0.45)] bg-[hsl(var(--brand-gold)/0.12)] px-2 py-1 text-[11px] font-medium text-[hsl(var(--brand-navy))]">
                 {status}
               </span>

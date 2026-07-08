@@ -4,6 +4,7 @@ import { demoAccounts } from "@/lib/auth/accounts";
 import { canTransitionAgentRun } from "@/lib/copilot/approval";
 import { buildCopilotContext } from "@/lib/copilot/context";
 import { DraftAssistClient } from "@/lib/copilot/draft-assist";
+import { buildEvidencePack } from "@/lib/domain/evidence-pack";
 import { getApprovalQueueForAccount } from "@/lib/domain/governance";
 import { getRiskComplianceSummary } from "@/lib/domain/risk-compliance";
 import { LocalJsonRepo } from "@/lib/repo/local-json-repo";
@@ -90,6 +91,34 @@ test("Block compliance escalates routine draft and adds gate evidence", async ()
   assert.ok(run.steps.some((step) => step.name === "Compliance gate"));
 });
 
+test("Email draft applies disclaimer rule and exports policy rule checks", async () => {
+  const run = await runAdrianDraft("concise_touch");
+  const output = run.output as { draft?: string };
+  const ruleSources = run.steps.map((step) => step.source);
+
+  assert.match(output.draft ?? "", /For discussion and review only/);
+  assert.ok(ruleSources.includes("rule_suitability_01"));
+  assert.ok(ruleSources.includes("rule_draft_approval_01"));
+  assert.ok(ruleSources.includes("rule_disclaimer_01"));
+  assert.ok(run.sourceRefs.includes("rule_disclaimer_01"));
+
+  const pack = buildEvidencePack({ run, customerName: "Test Client" });
+  assert.ok(pack.governance.ruleChecks.some((item) => item.includes("rule_draft_approval_01")));
+  assert.ok(pack.governance.ruleChecks.some((item) => item.includes("rule_disclaimer_01")));
+});
+
+test("WhatsApp draft records disclaimer exemption without appending long disclaimer", async () => {
+  const run = await runDraftFor(adrian.rmId, "concise_touch", "NonBlock", "whatsapp");
+  const output = run.output as { draft?: string };
+  const disclaimerStep = run.steps.find((step) => step.source === "rule_disclaimer_01");
+
+  assert.doesNotMatch(output.draft ?? "", /For discussion and review only/);
+  assert.deepEqual(
+    isRecord(disclaimerStep?.output) ? disclaimerStep.output.result : undefined,
+    "exempt"
+  );
+});
+
 test("Adrian Client Review Pack still requires manager approval and appears in Sofia's queue", async () => {
   const run = await runAdrianDraft("client_review_pack");
 
@@ -123,7 +152,12 @@ async function runAdrianDraft(format: string): Promise<AgentRun> {
   return runDraftFor(adrian.rmId, format);
 }
 
-async function runDraftFor(rmId: string, format: string, complianceTarget: "Block" | "NonBlock" = "NonBlock"): Promise<AgentRun> {
+async function runDraftFor(
+  rmId: string,
+  format: string,
+  complianceTarget: "Block" | "NonBlock" = "NonBlock",
+  channel: "email" | "whatsapp" = "email"
+): Promise<AgentRun> {
   const repo = new LocalJsonRepo();
   const account = requireDemoAccount(rmId);
   const products = await repo.listProducts();
@@ -135,7 +169,7 @@ async function runDraftFor(rmId: string, format: string, complianceTarget: "Bloc
     intent: "Prepare the next client service touch.",
     modelRoute: "mock" as const,
     uiContext: {
-      channel: "email",
+      channel,
       format
     }
   };
@@ -199,4 +233,8 @@ function requireDemoAccount(rmId: string) {
     throw new Error(`Expected demo account ${rmId} to exist.`);
   }
   return account;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

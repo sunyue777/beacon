@@ -174,5 +174,11 @@
         "prompt": "Prepare a phone script to schedule a client meeting. Keep it short and service-led."
       }
     }
+  },
+  "policy_rules": {
+    "rule_disclaimer_01": {
+      "clientFacingText": "For discussion and review only; this message does not constitute investment, tax, or legal advice, and any action remains subject to client instruction and required internal approvals.",
+      "whatsappExemptionReason": "WhatsApp drafts are exempt from the long-form disclaimer because the channel is constrained to 2-4 short lines; the rule is recorded in trace instead."
+    }
   }
 }

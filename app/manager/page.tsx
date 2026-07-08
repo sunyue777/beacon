@@ -11,6 +11,7 @@ import { HistoryTimeline } from "@/components/evidence/history-timeline";
 import { ApprovalTransitionControls } from "@/components/copilot/approval-transition-controls";
 import { CoverageRing } from "@/components/ui/coverage-ring";
 import { getDraftReviewSummary } from "@/lib/copilot/draft-summary";
+import { getComplianceGateReason } from "@/lib/copilot/run-inspection";
 import { getCurrentAccount } from "@/lib/auth/server-session";
 import { getRoleLabel } from "@/lib/auth/accounts";
 import { daysUntil } from "@/lib/domain/client-signals";
@@ -710,6 +711,7 @@ function ApprovalQueueCard({
           const actor = rmById.get(event.actorId);
           const run = event.runId ? runById.get(event.runId) : undefined;
           const draft = getDraftReviewSummary(run, event);
+          const gateReason = getComplianceGateReason(run);
           const pack = run
             ? buildEvidencePack({
                 kind: "draft",
@@ -757,6 +759,11 @@ function ApprovalQueueCard({
                   </span>
                   {draft.channelLabel} draft - {draft.title}
                 </div>
+                {gateReason ? (
+                  <div className="mt-1 inline-flex max-w-full rounded-md border border-danger/30 bg-danger/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-danger">
+                    {gateReason}
+                  </div>
+                ) : null}
                 <div className="mt-1 text-[11px] text-muted-foreground">
                   {customer?.name ?? "Team item"} / {actor?.name ?? event.actorRole} / {draft.wordCount} words /{" "}
                   {draft.guardLabel} / {event.timestamp.slice(11, 16)}

@@ -38,6 +38,11 @@ interface DraftFormatConfig {
   [key: string]: unknown;
 }
 
+type PolicyRuleConfig = {
+  clientFacingText?: string;
+  whatsappExemptionReason?: string;
+};
+
 export class DraftAssistClient implements CopilotClient {
   constructor(private readonly requestedRuntime?: CopilotRuntime) {}
 
@@ -88,7 +93,9 @@ export class DraftAssistClient implements CopilotClient {
     const normalizedOutput = normalizeDraftOutput(parsedOutput ?? ruleOutput, context, ruleOutput);
     const draftFormat = normalizeDraftFormat(context.uiContext?.format);
     const compliance = getRiskComplianceSummary(context.customer, context.holdings ?? [], context.products ?? []);
-    const output = applyComplianceGateToDraft(normalizedOutput, compliance);
+    const approvalRequired = approvalForDraftWithCompliance(draftFormat, context.roleAtRun, compliance.worst);
+    const outputWithDisclaimer = applyDisclaimerRule(normalizedOutput);
+    const output = applyComplianceGateToDraft(outputWithDisclaimer, compliance);
     const guard = applyVocabularyGuardToOutput(output);
     const finishedAt = new Date();
     const runId = `run_${request.module}_${context.customer.customerId}_${Date.now()}`;
@@ -120,11 +127,18 @@ export class DraftAssistClient implements CopilotClient {
           channel: output.channel,
           format: formatLabel(draftFormat),
           artifactKind: output.artifactKind,
-          approvalRequired: approvalForDraft(draftFormat, context.roleAtRun),
+          approvalRequired,
           approvalItems: output.approvalChecklist.length,
           openItems: output.openItems.length
         }
       },
+      ...getPolicyRuleSteps({
+        draftFormat,
+        role: context.roleAtRun,
+        approvalRequired,
+        compliance,
+        output
+      }),
       ...getComplianceGateSteps(compliance),
       {
         name: "Skill-direct completion",
@@ -160,7 +174,7 @@ export class DraftAssistClient implements CopilotClient {
       rmId: context.actor.rmId,
       roleAtRun: context.roleAtRun,
       inputDigest: digestInput(context),
-      sourceRefs: context.sourceRefs,
+      sourceRefs: [...new Set([...context.sourceRefs, "rule_suitability_01", "rule_draft_approval_01", "rule_disclaimer_01"])],
       steps,
       output: guard.output,
       fallbackMode: false,
@@ -608,6 +622,54 @@ function getComplianceGateSteps(compliance: ReturnType<typeof getRiskComplianceS
   return [];
 }
 
+function getPolicyRuleSteps({
+  draftFormat,
+  role,
+  approvalRequired,
+  compliance,
+  output
+}: {
+  draftFormat: DraftFormat;
+  role: AgentRun["roleAtRun"];
+  approvalRequired: AgentRun["approvalRequired"];
+  compliance: ReturnType<typeof getRiskComplianceSummary>;
+  output: DraftAssistOutput;
+}): AgentRun["steps"] {
+  const disclaimerConfig = getDisclaimerRuleConfig();
+  const disclaimerApplied = output.channel !== "whatsapp" && Boolean(getDisclaimerText());
+  return [
+    {
+      name: "Rule check: rule_suitability_01",
+      source: "rule_suitability_01",
+      output: {
+        result: compliance.worst,
+        note: `Checked against rule_suitability_01 -> ${compliance.worst}.`,
+        reason: compliance.suitability.detail
+      }
+    },
+    {
+      name: "Rule check: rule_draft_approval_01",
+      source: "rule_draft_approval_01",
+      output: {
+        result: approvalRequired,
+        note: `Checked against rule_draft_approval_01 -> ${approvalRequired}.`,
+        format: formatLabel(draftFormat),
+        role
+      }
+    },
+    {
+      name: "Rule check: rule_disclaimer_01",
+      source: "rule_disclaimer_01",
+      output: {
+        result: disclaimerApplied ? "applied" : "exempt",
+        note: disclaimerApplied ? "rule_disclaimer_01 applied" : "rule_disclaimer_01 exempted",
+        channel: output.channel,
+        exemptionReason: disclaimerApplied ? undefined : disclaimerConfig.whatsappExemptionReason
+      }
+    }
+  ];
+}
+
 function applyComplianceGateToDraft(
   output: DraftAssistOutput,
   compliance: ReturnType<typeof getRiskComplianceSummary>
@@ -631,6 +693,43 @@ function applyComplianceGateToDraft(
       ...output.openItems.filter((item) => !item.toLowerCase().includes("suitability refresh"))
     ].slice(0, 6)
   };
+}
+
+function applyDisclaimerRule(output: DraftAssistOutput): DraftAssistOutput {
+  const disclaimer = getDisclaimerText();
+  if (!disclaimer || output.channel === "whatsapp") {
+    return output;
+  }
+
+  return {
+    ...output,
+    draft: output.channel === "email" ? appendDisclaimer(output.draft, disclaimer) : output.draft,
+    artifactText: output.artifactText ? appendDisclaimer(output.artifactText, disclaimer) : output.artifactText,
+    approvalChecklist: [
+      ...output.approvalChecklist,
+      "rule_disclaimer_01 applied before client-facing use."
+    ].slice(0, 6),
+    evidence: [
+      ...output.evidence,
+      "rule_disclaimer_01 applied from data/copilot/rules.json."
+    ].slice(0, 6)
+  };
+}
+
+function appendDisclaimer(value: string, disclaimer: string) {
+  if (value.includes(disclaimer)) {
+    return value;
+  }
+  return `${value.trim()}\n\n${disclaimer}`;
+}
+
+function getDisclaimerText() {
+  return getDisclaimerRuleConfig().clientFacingText?.trim() ?? "";
+}
+
+function getDisclaimerRuleConfig(): PolicyRuleConfig {
+  const policyRules = (rulesConfig as { policy_rules?: Record<string, PolicyRuleConfig | undefined> }).policy_rules;
+  return policyRules?.rule_disclaimer_01 ?? {};
 }
 
 function emailSubjectFor(format: DraftFormat) {

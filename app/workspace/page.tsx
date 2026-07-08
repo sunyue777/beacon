@@ -18,6 +18,7 @@ import { MarketTonePanel } from "@/components/market/market-tone-panel";
 import { getCurrentAccount } from "@/lib/auth/server-session";
 import { getRoleLabel } from "@/lib/auth/accounts";
 import { getDraftReviewSummary } from "@/lib/copilot/draft-summary";
+import { getComplianceGateReason } from "@/lib/copilot/run-inspection";
 import {
   formatRelativeDays,
   getPriorityReason,
@@ -51,6 +52,8 @@ type WorkspaceProps = {
 
 const QUEUE_DEFAULT = 7;
 const QUEUE_FULL = 20;
+const EXEMPLAR_DRAFT_RUN_ID = "demo_lifecycle_draft_run";
+const EXEMPLAR_DRAFT_EVENT_ID = "demo_lifecycle_draft_sent";
 
 type BriefHeadlineModel = {
   lead: string;
@@ -95,7 +98,14 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
         : event.actorId === account.rmId || (event.runId ? runById.get(event.runId)?.rmId === account.rmId : false)
     )
   );
-  const latestDraftHistoryEvent = visibleDraftEvents
+  const exemplarDraftHistoryEvent = account.rmId === "rm_junior_01"
+    ? visibleDraftEvents.find((event) => event.eventId === EXEMPLAR_DRAFT_EVENT_ID) ??
+      visibleDraftEvents.find((event) => event.runId === EXEMPLAR_DRAFT_RUN_ID)
+    : undefined;
+  const latestRuntimeDraftEvent = visibleDraftEvents
+    .filter((event) => Boolean(event.runId) && isRuntimeDraftEvent(event))
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+  const latestDraftHistoryEvent = exemplarDraftHistoryEvent ?? visibleDraftEvents
     .filter((event) => Boolean(event.runId))
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
 
@@ -187,6 +197,7 @@ export default async function WorkspacePage({ searchParams }: WorkspaceProps) {
           auditEvents={auditEvents}
           customers={ownedBook.items}
           event={latestDraftHistoryEvent}
+          latestActivityEvent={exemplarDraftHistoryEvent ? latestRuntimeDraftEvent : undefined}
           rms={rms}
           runs={runs}
         />
@@ -271,12 +282,14 @@ function DraftHistoryPanel({
   auditEvents,
   customers,
   event,
+  latestActivityEvent,
   rms,
   runs
 }: {
   auditEvents: AuditEvent[];
   customers: CustomerProfile[];
   event: AuditEvent;
+  latestActivityEvent?: AuditEvent;
   rms: RMUser[];
   runs: AgentRun[];
 }) {
@@ -285,6 +298,11 @@ function DraftHistoryPanel({
   const customer = event.customerId ? customerById.get(event.customerId) : undefined;
   const run = event.runId ? runById.get(event.runId) : undefined;
   const draft = getDraftReviewSummary(run, event);
+  const latestActivityCustomer = latestActivityEvent?.customerId ? customerById.get(latestActivityEvent.customerId) : undefined;
+  const latestActivityRun = latestActivityEvent?.runId ? runById.get(latestActivityEvent.runId) : undefined;
+  const latestActivityDraft = latestActivityEvent
+    ? getDraftReviewSummary(latestActivityRun, latestActivityEvent)
+    : undefined;
   const history = buildEvidenceTimeline({
     events: event.runId ? auditEvents.filter((item) => item.runId === event.runId) : [event],
     run,
@@ -310,8 +328,33 @@ function DraftHistoryPanel({
         ) : null}
       </div>
       <HistoryTimeline compact items={history} />
+      {latestActivityEvent && latestActivityDraft ? (
+        <div className="mt-4 rounded-[12px] border border-border bg-background/70 px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Latest activity
+              </div>
+              <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+                {latestActivityCustomer?.name ?? "This client"} / {latestActivityDraft.channelLabel} /{" "}
+                {latestActivityDraft.title} / {latestActivityEvent.timestamp.slice(11, 16)}
+              </p>
+            </div>
+            <Link
+              className="rounded-[10px] border border-border-strong bg-card px-3 py-2 text-[12px] font-medium text-foreground hover:border-primary hover:text-primary"
+              href={returnedDraftHref(latestActivityEvent)}
+            >
+              Open latest
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
+}
+
+function isRuntimeDraftEvent(event: AuditEvent) {
+  return Boolean(event.runId?.startsWith("run_") || event.eventId.startsWith("draft_"));
 }
 
 /* =============================== Fused workspace hero =============================== */
@@ -948,6 +991,7 @@ function ApprovalQueueCard({
           const actor = rmById.get(event.actorId);
           const run = event.runId ? runById.get(event.runId) : undefined;
           const draft = getDraftReviewSummary(run, event);
+          const gateReason = getComplianceGateReason(run);
           const accent = draft.guardTone === "adjusted" ? "warning" : "success";
           const initials = (customer?.name ?? event.eventId)
             .split(/\s+/)
@@ -967,6 +1011,11 @@ function ApprovalQueueCard({
                 <div className="truncate text-[13px] font-semibold">
                   {draft.channelLabel} draft - {draft.title}
                 </div>
+                {gateReason ? (
+                  <div className="mt-1 inline-flex max-w-full rounded-md border border-danger/30 bg-danger/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-danger">
+                    {gateReason}
+                  </div>
+                ) : null}
                 <div className="mt-1 text-[11px] text-muted-foreground">
                   {customer?.name ?? "Team item"} / {actor?.name ?? event.actorRole} / {draft.wordCount} words /{" "}
                   {event.timestamp.slice(11, 16)}
