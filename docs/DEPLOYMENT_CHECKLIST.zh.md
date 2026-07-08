@@ -54,6 +54,22 @@ npm run validate-data
 
 Vercel 环境变量修改后必须 Redeploy 才会生效。恢复 `SESSION_SECRET` 生产保护后，缺少该变量的 Production deployment 登录会返回 500，这是保护逻辑正常工作；不要通过放宽代码绕过。
 
+生产 smoke：
+
+```bash
+vercel env pull .env.production.local --environment=production --yes
+npm run smoke:production
+```
+
+该脚本会读取本机 `BEACON_ACCESS_CODE`，依次验证 `/access`、`/api/session`、`/workspace`。如果 Production 没有重新部署到最新环境变量，它会指出卡在 access gate、access code、session secret，还是 workspace cookie。
+
+可选目标：
+
+```bash
+npm run smoke:production -- --base-url https://your-preview.vercel.app
+npm run smoke:production -- --base-url http://localhost:3000 --allow-open-access
+```
+
 ## 3. 推荐 demo env
 
 `.env.local`：
