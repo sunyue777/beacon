@@ -39,6 +39,7 @@ const memoryStore =
 const memoryCounters = runtimeGlobal.__dynaBeaconRuntimeCounters ?? (runtimeGlobal.__dynaBeaconRuntimeCounters = {});
 
 let redisClient: Redis | null | undefined;
+let redisFallbackWarned = false;
 
 function getRedisClient() {
   if (redisClient !== undefined) {
@@ -57,14 +58,19 @@ async function readCollection<K extends keyof RuntimeCollections>(collection: K)
     return [...memoryStore[collection]] as RuntimeCollections[K];
   }
 
-  const raw = await redis.get<string | RuntimeCollections[K]>(runtimeKeys[collection]);
-  if (!raw) {
-    return [] as unknown as RuntimeCollections[K];
+  try {
+    const raw = await redis.get<string | RuntimeCollections[K]>(runtimeKeys[collection]);
+    if (!raw) {
+      return [] as unknown as RuntimeCollections[K];
+    }
+    if (typeof raw === "string") {
+      return JSON.parse(raw) as RuntimeCollections[K];
+    }
+    return raw;
+  } catch (error) {
+    disableRedis(error);
+    return [...memoryStore[collection]] as RuntimeCollections[K];
   }
-  if (typeof raw === "string") {
-    return JSON.parse(raw) as RuntimeCollections[K];
-  }
-  return raw;
 }
 
 async function writeCollection<K extends keyof RuntimeCollections>(collection: K, items: RuntimeCollections[K]) {
@@ -75,9 +81,14 @@ async function writeCollection<K extends keyof RuntimeCollections>(collection: K
     return;
   }
 
-  // Demo workload is tiny, so a simple read-modify-write is acceptable here.
-  // Production should move this to atomic list operations or optimistic locking.
-  await redis.set(runtimeKeys[collection], JSON.stringify(next), { ex: TTL_SECONDS });
+  try {
+    // Demo workload is tiny, so a simple read-modify-write is acceptable here.
+    // Production should move this to atomic list operations or optimistic locking.
+    await redis.set(runtimeKeys[collection], JSON.stringify(next), { ex: TTL_SECONDS });
+  } catch (error) {
+    disableRedis(error);
+    memoryStore[collection] = next;
+  }
 }
 
 async function pushCollection<K extends keyof RuntimeCollections>(
@@ -147,11 +158,19 @@ export async function clearRuntimeTranscripts() {
 export async function incrementRuntimeCounter(key: string, ttlSeconds = COUNTER_TTL_SECONDS): Promise<number> {
   const redis = getRedisClient();
   if (redis) {
-    const count = await redis.incr(key);
-    await redis.expire(key, ttlSeconds);
-    return count;
+    try {
+      const count = await redis.incr(key);
+      await redis.expire(key, ttlSeconds);
+      return count;
+    } catch (error) {
+      disableRedis(error);
+    }
   }
 
+  return incrementMemoryCounter(key, ttlSeconds);
+}
+
+function incrementMemoryCounter(key: string, ttlSeconds: number) {
   const now = Date.now();
   const existing = memoryCounters[key];
   if (!existing || existing.expiresAt <= now) {
@@ -164,4 +183,13 @@ export async function incrementRuntimeCounter(key: string, ttlSeconds = COUNTER_
 
   existing.value += 1;
   return existing.value;
+}
+
+function disableRedis(error: unknown) {
+  redisClient = null;
+  if (redisFallbackWarned) {
+    return;
+  }
+  redisFallbackWarned = true;
+  console.warn("Runtime Redis is unavailable; using the in-memory fallback for this instance.", error);
 }
