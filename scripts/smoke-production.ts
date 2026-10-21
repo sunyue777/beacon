@@ -18,7 +18,7 @@ type StepResult = {
 };
 
 const repoRoot = process.cwd();
-const defaultBaseUrl = "https://dyna-beacon.vercel.app";
+const defaultBaseUrl = "https://beacon-murex.vercel.app";
 const envFileOrder = [".env", ".env.production", ".env.local", ".env.production.local"];
 
 async function main() {

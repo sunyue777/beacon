@@ -117,7 +117,7 @@ export function LoginPanel() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="font-display-tight text-[24px] font-medium leading-none md:text-[32px]">
-                    Dyna Beacon
+                    Beacon
                   </div>
                   <div className="mt-2 text-[12px] leading-5 text-muted-foreground">
                     Select one account. Authority expands from Junior to Manager.

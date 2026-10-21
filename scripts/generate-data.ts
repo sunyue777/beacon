@@ -189,9 +189,9 @@ function main() {
 
 function buildRms(): RMUser[] {
   return [
-    { rmId: "rm_junior_01", name: "Jensen Parker", email: "jensen.parker@dyna-demo.bank", role: "Junior", bookScope: { customerIds: [] } },
-    { rmId: "rm_mid_01", name: "Adrian Lim", email: "adrian.lim@dyna-demo.bank", role: "MidLevel", bookScope: { customerIds: [] } },
-    { rmId: "rm_manager_01", name: "Sofia Tan", email: "sofia.tan@dyna-demo.bank", role: "Manager", bookScope: { allInTeam: true } }
+    { rmId: "rm_junior_01", name: "Jensen Parker", email: "jensen.parker@demo.bank", role: "Junior", bookScope: { customerIds: [] } },
+    { rmId: "rm_mid_01", name: "Adrian Lim", email: "adrian.lim@demo.bank", role: "MidLevel", bookScope: { customerIds: [] } },
+    { rmId: "rm_manager_01", name: "Sofia Tan", email: "sofia.tan@demo.bank", role: "Manager", bookScope: { allInTeam: true } }
   ];
 }
 
@@ -203,7 +203,7 @@ function buildProducts(): Product[] {
     const riskLevel = risks[(index + categories.indexOf(category)) % risks.length];
     return {
       productId: `prod_${String(index + 1).padStart(3, "0")}`,
-      name: `${["Dyna", "Harbor", "Summit", "Meridian", "Crescent"][index % 5]} ${category} ${String(index + 1).padStart(2, "0")}`,
+      name: `${["Harbor", "Summit", "Meridian", "Crescent", "Northstar"][index % 5]} ${category} ${String(index + 1).padStart(2, "0")}`,
       family: `${category} Solutions`,
       category,
       geography: (["Local", "Regional", "Global"] as const)[index % 3],

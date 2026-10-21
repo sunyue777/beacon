@@ -30,7 +30,7 @@ test("runVoiceScenario prepares transcript and post-call trace", async () => {
   assert.equal(result.followUpDraft?.approvalRequired, "auto");
 });
 
-test("runVoiceScenario keeps Dyna Voice SaaS path as a traceable fallback", async () => {
+test("runVoiceScenario keeps the Voice SaaS path as a traceable fallback", async () => {
   const repo = getRepo();
   const account = demoAccounts.find((item) => item.role === "Manager") ?? demoAccounts[0];
   const customers = await repo.listCustomers({ rmId: account.rmId, role: account.role, limit: 1 });
@@ -46,6 +46,6 @@ test("runVoiceScenario keeps Dyna Voice SaaS path as a traceable fallback", asyn
   assert.equal(result.session.integrationMode, "dyna_voice_saas");
   assert.equal(result.agentRun?.fallbackMode, true);
   assert.equal(result.agentRun?.approvalRequired, "rm-approval");
-  assert.ok(result.agentRun?.steps.some((step) => step.source === "DynaVoiceSaaSAdapterStub"));
+  assert.ok(result.agentRun?.steps.some((step) => step.source === "VoiceSaaSAdapterStub"));
   assert.equal(result.followUpDraft?.approvalRequired, "rm-approval");
 });

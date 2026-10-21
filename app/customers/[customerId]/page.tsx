@@ -1306,7 +1306,7 @@ function AlignmentTab({
       />
 
       <div className="rounded-[10px] border border-border bg-card-soft/50 p-3 text-[12px] text-muted-foreground">
-        Dyna Beacon surfaces evidence and trace. Suitability, eligibility, approval, and final client action remain
+        Beacon surfaces evidence and trace. Suitability, eligibility, approval, and final client action remain
         institution-owned. See <code className="font-mono">docs/SCORING.md</code> for compliance rule definitions and per-institution customization.
       </div>
 
@@ -1681,7 +1681,7 @@ function buildCommunicationLog(customer: CustomerProfile, auditEvents: AuditEven
       return {
         date: event.date,
         channel: "RM note",
-        actor: "Dyna Beacon",
+        actor: "Beacon",
         summary: `${display.title}: ${display.description}`
       };
     });

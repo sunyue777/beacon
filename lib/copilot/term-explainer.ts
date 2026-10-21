@@ -24,7 +24,7 @@ export class TermExplainerClient implements CopilotClient {
     const llm = getLLM(undefined, context.modelRoute);
     const ruleOutput = buildTermOutput(request, context);
     const system = [
-      "You are Dyna Beacon's term explainer for wealth relationship managers.",
+      "You are Beacon's term explainer for wealth relationship managers.",
       "Explain terms for RM comprehension only. Do not provide client advice.",
       "Use only supplied Beacon context. Do not invent facts.",
       "Use prepare, surface, trace, evidence, approval language.",

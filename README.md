@@ -1,4 +1,4 @@
-# Dyna Beacon
+# Beacon
 
 Wealth Beacon is a greenfield presale demo platform for mass-affluent and affluent RM teams.
 
@@ -17,6 +17,6 @@ Default mode is `AI_MODE=demo`. Live Agent Studio credentials must stay in local
 ## Project Milestones
 
 - Phase 0: kickoff docs and module catalog.
-- Phase 1: Next.js foundation, Dyna shell, repo layer, AI output/audit skeleton.
+- Phase 1: Next.js foundation, app shell, repo layer, AI output/audit skeleton.
 - Phase 2: local JSON seed data and validation.
 - Phase 3+: RM workspace, AI copilot, communication flow, governance, deployment.

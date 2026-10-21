@@ -682,7 +682,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function downloadDraftPdf(output: DraftAssistOutput) {
-  const title = output.headline ?? output.formatLabel ?? "Dyna Beacon draft";
+  const title = output.headline ?? output.formatLabel ?? "Beacon draft";
   const lines = [
     title,
     output.subject ? `Subject: ${output.subject}` : "",
@@ -754,7 +754,7 @@ function toPdfAscii(value: string) {
 }
 
 function slugifyPdfName(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "dyna-beacon-draft";
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "beacon-draft";
 }
 
 function CopyButton({ copied, label, onClick }: { copied: boolean; label: string; onClick: () => void }) {

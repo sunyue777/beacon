@@ -60,7 +60,7 @@ export class DraftAssistClient implements CopilotClient {
     const llm = getLLM(undefined, context.modelRoute);
     const ruleOutput = buildDraftOutput(context);
     const system = [
-      "You are Dyna Beacon's draft assistant for wealth relationship managers.",
+      "You are Beacon's draft assistant for wealth relationship managers.",
       "Use only the supplied Beacon context. Do not invent client facts.",
       "Prepare a draft only. Do not advise, recommend, decide, or tell the client what they should do.",
       "Use natural client language. Avoid internal workflow words in the client-facing draft.",

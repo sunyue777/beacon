@@ -83,7 +83,7 @@ export async function runVoiceScenario({
     },
     {
       name: "Run telephony adapter",
-      source: integrationMode === "dyna_voice_saas" ? "DynaVoiceSaaSAdapterStub" : "WebCallSimulator",
+      source: integrationMode === "dyna_voice_saas" ? "VoiceSaaSAdapterStub" : "WebCallSimulator",
       output: {
         sessionId: session.sessionId,
         status: session.status,

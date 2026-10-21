@@ -98,7 +98,7 @@ function normalizeFocus(value: string | null): MarketFocus {
 async function fetchYahooChart(symbol: string, name: string) {
   const response = await fetch(
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`,
-    { cache: "no-store", headers: { "User-Agent": "Dyna-Beacon-Demo/1.0" }, signal: AbortSignal.timeout(3000) }
+    { cache: "no-store", headers: { "User-Agent": "Beacon-Demo/1.0" }, signal: AbortSignal.timeout(3000) }
   );
   if (!response.ok) return null;
   const data = await response.json();
@@ -117,7 +117,7 @@ async function fetchYahooChart(symbol: string, name: string) {
 async function fetchNewsTitles(query: string) {
   const response = await fetch(
     `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`,
-    { cache: "no-store", headers: { "User-Agent": "Dyna-Beacon-Demo/1.0" }, signal: AbortSignal.timeout(3000) }
+    { cache: "no-store", headers: { "User-Agent": "Beacon-Demo/1.0" }, signal: AbortSignal.timeout(3000) }
   );
   if (!response.ok) return [];
   const xml = await response.text();

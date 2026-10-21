@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * Dyna Beacon design tokens (v0.9 / Beacon brand guide).
+ * Beacon design tokens (v0.9 / Beacon brand guide).
  *
  * Navy carries hierarchy and trust, bright blue carries action,
  * light gold carries premium and AI signal, off-white carries the canvas.
@@ -53,9 +53,9 @@
   --danger-soft: 358 80% 96%;
   --critical: 350 70% 42%;
 
-  /* Role accents 鈥?three shades of Dyna blue (lighter 鈫?deeper):
+  /* Role accents — three shades of Beacon blue (lighter → deeper):
      Junior  = light sky blue, fresh / learning
-     Mid     = brand blue, the canonical Dyna accent
+     Mid     = brand blue, the canonical Beacon accent
      Manager = supervisory blue, distinct from app navy background */
   --role-junior: 200 92% 64%;
   --role-mid: 207 100% 42%;

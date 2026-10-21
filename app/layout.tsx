@@ -30,8 +30,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dyna Beacon",
-  description: "Wealth RM copilot demo platform for Dyna.AI"
+  title: "Beacon",
+  description: "Wealth RM copilot demo platform"
 };
 
 export default async function RootLayout({

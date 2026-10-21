@@ -22,10 +22,10 @@ const runtimeKeys: Record<keyof RuntimeCollections, string> = {
   transcripts: "beacon:runtime:transcripts"
 };
 
-const runtimeKey = "__dynaBeaconRuntimeStore";
+const runtimeKey = "__beaconRuntimeStore";
 const runtimeGlobal = globalThis as typeof globalThis & {
   [runtimeKey]?: RuntimeCollections;
-  __dynaBeaconRuntimeCounters?: Record<string, RuntimeCounter>;
+  __beaconRuntimeCounters?: Record<string, RuntimeCounter>;
 };
 
 const memoryStore =
@@ -36,7 +36,7 @@ const memoryStore =
     transcripts: []
   });
 
-const memoryCounters = runtimeGlobal.__dynaBeaconRuntimeCounters ?? (runtimeGlobal.__dynaBeaconRuntimeCounters = {});
+const memoryCounters = runtimeGlobal.__beaconRuntimeCounters ?? (runtimeGlobal.__beaconRuntimeCounters = {});
 
 let redisClient: Redis | null | undefined;
 let redisFallbackWarned = false;

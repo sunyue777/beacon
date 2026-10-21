@@ -98,7 +98,7 @@ export function VoiceMvpPanel({ customerId, customerName }: { customerId: string
               onChange={(event) => setIntegrationMode(event.target.value as VoiceIntegrationMode)}
             >
               <option value="web_call_simulator">Web call simulator</option>
-              <option value="dyna_voice_saas">Dyna Voice SaaS path</option>
+              <option value="dyna_voice_saas">Voice SaaS path</option>
             </select>
           </label>
           <Button className="self-end" disabled={loading} onClick={runVoice} size="sm" type="button">

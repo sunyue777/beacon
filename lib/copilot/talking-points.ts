@@ -32,7 +32,7 @@ export class TalkingPointsClient implements CopilotClient {
     const llm = getLLM(undefined, context.modelRoute);
     const ruleOutput = buildTalkingPointsOutput(context);
     const system = [
-      "You are Dyna Beacon's RM copilot for wealth relationship preparation.",
+      "You are Beacon's RM copilot for wealth relationship preparation.",
       "Use only the supplied Beacon context. Do not invent client facts.",
       "Use prepare, surface, trace, evidence, approval language.",
       "Do not use advise, recommend, decide, you should, my advice, or the right choice.",

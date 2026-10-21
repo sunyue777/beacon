@@ -3,7 +3,7 @@
     {
       "rmId": "rm_junior_01",
       "name": "Jensen Parker",
-      "email": "jensen.parker@dyna-demo.bank",
+      "email": "jensen.parker@demo.bank",
       "role": "Junior",
       "bookScope": {
         "customerIds": [
@@ -90,7 +90,7 @@
     {
       "rmId": "rm_mid_01",
       "name": "Adrian Lim",
-      "email": "adrian.lim@dyna-demo.bank",
+      "email": "adrian.lim@demo.bank",
       "role": "MidLevel",
       "bookScope": {
         "customerIds": [
@@ -396,7 +396,7 @@
     {
       "rmId": "rm_manager_01",
       "name": "Sofia Tan",
-      "email": "sofia.tan@dyna-demo.bank",
+      "email": "sofia.tan@demo.bank",
       "role": "Manager",
       "bookScope": {
         "allInTeam": true
@@ -37389,7 +37389,7 @@
   "products": [
     {
       "productId": "prod_001",
-      "name": "Dyna Fund 01",
+      "name": "Harbor Fund 01",
       "family": "Fund Solutions",
       "category": "Fund",
       "geography": "Local",
@@ -37464,7 +37464,7 @@
     },
     {
       "productId": "prod_006",
-      "name": "Dyna Fund 06",
+      "name": "Harbor Fund 06",
       "family": "Fund Solutions",
       "category": "Fund",
       "geography": "Global",
@@ -37539,7 +37539,7 @@
     },
     {
       "productId": "prod_011",
-      "name": "Dyna Fund 11",
+      "name": "Harbor Fund 11",
       "family": "Fund Solutions",
       "category": "Fund",
       "geography": "Regional",
@@ -37614,7 +37614,7 @@
     },
     {
       "productId": "prod_016",
-      "name": "Dyna Fund 16",
+      "name": "Harbor Fund 16",
       "family": "Fund Solutions",
       "category": "Fund",
       "geography": "Local",
@@ -37689,7 +37689,7 @@
     },
     {
       "productId": "prod_021",
-      "name": "Dyna Fund 21",
+      "name": "Harbor Fund 21",
       "family": "Fund Solutions",
       "category": "Fund",
       "geography": "Global",
@@ -37764,7 +37764,7 @@
     },
     {
       "productId": "prod_026",
-      "name": "Dyna Fund 26",
+      "name": "Harbor Fund 26",
       "family": "Fund Solutions",
       "category": "Fund",
       "geography": "Regional",
@@ -37839,7 +37839,7 @@
     },
     {
       "productId": "prod_031",
-      "name": "Dyna ETF 31",
+      "name": "Harbor ETF 31",
       "family": "ETF Solutions",
       "category": "ETF",
       "geography": "Local",
@@ -37914,7 +37914,7 @@
     },
     {
       "productId": "prod_036",
-      "name": "Dyna ETF 36",
+      "name": "Harbor ETF 36",
       "family": "ETF Solutions",
       "category": "ETF",
       "geography": "Global",
@@ -37989,7 +37989,7 @@
     },
     {
       "productId": "prod_041",
-      "name": "Dyna Bond 41",
+      "name": "Harbor Bond 41",
       "family": "Bond Solutions",
       "category": "Bond",
       "geography": "Regional",
@@ -38064,7 +38064,7 @@
     },
     {
       "productId": "prod_046",
-      "name": "Dyna Bond 46",
+      "name": "Harbor Bond 46",
       "family": "Bond Solutions",
       "category": "Bond",
       "geography": "Local",
@@ -38139,7 +38139,7 @@
     },
     {
       "productId": "prod_051",
-      "name": "Dyna Structured 51",
+      "name": "Harbor Structured 51",
       "family": "Structured Solutions",
       "category": "Structured",
       "geography": "Global",
@@ -38214,7 +38214,7 @@
     },
     {
       "productId": "prod_056",
-      "name": "Dyna Structured 56",
+      "name": "Harbor Structured 56",
       "family": "Structured Solutions",
       "category": "Structured",
       "geography": "Regional",
@@ -38289,7 +38289,7 @@
     },
     {
       "productId": "prod_061",
-      "name": "Dyna Deposit 61",
+      "name": "Harbor Deposit 61",
       "family": "Deposit Solutions",
       "category": "Deposit",
       "geography": "Local",
@@ -38364,7 +38364,7 @@
     },
     {
       "productId": "prod_066",
-      "name": "Dyna Deposit 66",
+      "name": "Harbor Deposit 66",
       "family": "Deposit Solutions",
       "category": "Deposit",
       "geography": "Global",
@@ -38439,7 +38439,7 @@
     },
     {
       "productId": "prod_071",
-      "name": "Dyna Insurance 71",
+      "name": "Harbor Insurance 71",
       "family": "Insurance Solutions",
       "category": "Insurance",
       "geography": "Regional",
@@ -38514,7 +38514,7 @@
     },
     {
       "productId": "prod_076",
-      "name": "Dyna Insurance 76",
+      "name": "Harbor Insurance 76",
       "family": "Insurance Solutions",
       "category": "Insurance",
       "geography": "Local",
@@ -38589,7 +38589,7 @@
     },
     {
       "productId": "prod_081",
-      "name": "Dyna FX 81",
+      "name": "Harbor FX 81",
       "family": "FX Solutions",
       "category": "FX",
       "geography": "Global",
@@ -38664,7 +38664,7 @@
     },
     {
       "productId": "prod_086",
-      "name": "Dyna FX 86",
+      "name": "Harbor FX 86",
       "family": "FX Solutions",
       "category": "FX",
       "geography": "Regional",
@@ -38739,7 +38739,7 @@
     },
     {
       "productId": "prod_091",
-      "name": "Dyna EquityBasket 91",
+      "name": "Harbor EquityBasket 91",
       "family": "EquityBasket Solutions",
       "category": "EquityBasket",
       "geography": "Local",
@@ -38814,7 +38814,7 @@
     },
     {
       "productId": "prod_096",
-      "name": "Dyna EquityBasket 96",
+      "name": "Harbor EquityBasket 96",
       "family": "EquityBasket Solutions",
       "category": "EquityBasket",
       "geography": "Global",
@@ -38889,7 +38889,7 @@
     },
     {
       "productId": "prod_101",
-      "name": "Dyna EquityBasket 101",
+      "name": "Harbor EquityBasket 101",
       "family": "EquityBasket Solutions",
       "category": "EquityBasket",
       "geography": "Regional",
@@ -38964,7 +38964,7 @@
     },
     {
       "productId": "prod_106",
-      "name": "Dyna EquityBasket 106",
+      "name": "Harbor EquityBasket 106",
       "family": "EquityBasket Solutions",
       "category": "EquityBasket",
       "geography": "Local",
@@ -39039,7 +39039,7 @@
     },
     {
       "productId": "prod_111",
-      "name": "Dyna EquityBasket 111",
+      "name": "Harbor EquityBasket 111",
       "family": "EquityBasket Solutions",
       "category": "EquityBasket",
       "geography": "Global",
@@ -39114,7 +39114,7 @@
     },
     {
       "productId": "prod_116",
-      "name": "Dyna EquityBasket 116",
+      "name": "Harbor EquityBasket 116",
       "family": "EquityBasket Solutions",
       "category": "EquityBasket",
       "geography": "Regional",
@@ -39189,7 +39189,7 @@
     },
     {
       "productId": "prod_121",
-      "name": "Dyna ModelPortfolio 121",
+      "name": "Harbor ModelPortfolio 121",
       "family": "ModelPortfolio Solutions",
       "category": "ModelPortfolio",
       "geography": "Local",
@@ -39264,7 +39264,7 @@
     },
     {
       "productId": "prod_126",
-      "name": "Dyna ModelPortfolio 126",
+      "name": "Harbor ModelPortfolio 126",
       "family": "ModelPortfolio Solutions",
       "category": "ModelPortfolio",
       "geography": "Global",
@@ -39339,7 +39339,7 @@
     },
     {
       "productId": "prod_131",
-      "name": "Dyna Alternative 131",
+      "name": "Harbor Alternative 131",
       "family": "Alternative Solutions",
       "category": "Alternative",
       "geography": "Regional",
@@ -39414,7 +39414,7 @@
     },
     {
       "productId": "prod_136",
-      "name": "Dyna Alternative 136",
+      "name": "Harbor Alternative 136",
       "family": "Alternative Solutions",
       "category": "Alternative",
       "geography": "Local",

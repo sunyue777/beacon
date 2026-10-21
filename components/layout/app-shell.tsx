@@ -71,7 +71,7 @@ export function AppShell({ account, children, defaultEngine }: { account?: DemoA
           >
             <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-6 px-7">
               <Link
-                aria-label="Dyna Beacon home"
+                aria-label="Beacon home"
                 className="flex items-center gap-2.5 transition hover:-translate-y-px"
                 href="/workspace"
               >
@@ -88,7 +88,7 @@ export function AppShell({ account, children, defaultEngine }: { account?: DemoA
                   />
                 </span>
                 <span className="font-display text-[16px] font-semibold tracking-tight">
-                  Dyna Beacon
+                  Beacon
                 </span>
               </Link>
               {/* Pill nav (centered) */}
